@@ -5,3 +5,6 @@ local.properties
 *.iml
 .cxx/
 *.apk
+*.jks
+*.keystore
+keystore.properties

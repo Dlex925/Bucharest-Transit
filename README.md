@@ -2,46 +2,36 @@
 
 [![build](https://github.com/Dlex925/Bucharest-Transit/actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
 
+<!-- uncomment once the app is accepted into F-Droid:
+[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="70">](https://f-droid.org/packages/ro.bucharest.transit/)
+-->
+
 An open-source Android client for real-time Bucharest public transport, built
 on the open data from mo-bi.ro. It is a de-Googled alternative to the official
 InfoTB app, which relies on Google Maps and Play Services.
 
 ## Features
 
-- **Live vehicles** on the map as line-number badges, refreshed every 30 s
-  (or on demand with the refresh button), from the mo-bi open-data feed — the
-  same data that powers [maps.mo-bi.ro](https://maps.mo-bi.ro/).
-- **Lines tab** where you can search a line either by number or by terminus.
-- **Stops & arrivals**: stop markers from zoom 13 up; tap a stop for live
-  arrivals. The selected stop stays highlighted.
-- **Self-updating network database**: the line/geometry/stop database is built
-  on-device from the official TPBI GTFS archive, cached locally and refreshed
-  automatically when it is older than a day. A bundled snapshot (200 lines,
-  4,532 stops) makes the first launch usable straight away.
-- **Traffic & incident layers** (optional, off by default): street segments
-  coloured by delay and road-hazard markers.
-- **Nearby stops**: one tap away, listed by distance from your last known
-  location.
-- Romanian / English interface, switchable in the app.
-- No account, no tracking, no Google.
+- Live vehicles as line-number badges, refreshed every 30 s.
+- Lines searchable by number or terminus; selecting one draws every variant of
+  its route, branches included.
+- Tap a stop for one chronological list of every line serving it: live times
+  where the feed has them, the schedule otherwise.
+- Full-day timetable per line, computed on device from the GTFS archive.
+- Optional traffic and incident layers. Nearby stops from your last fix.
+- Romanian and English.
 
-## Permissions
-
-`INTERNET` for live updates, plus optional `Location` access for the nearby-stops
-list and the "my location" button.
+Needs `INTERNET`; location only for the nearby-stops list.
 
 ## Screenshots
 
-![](docs/sc1.png) ![](docs/sc3.png) ![](docs/sc2.png)
+![](fastlane/metadata/android/en-US/images/phoneScreenshots/1.png) ![](fastlane/metadata/android/en-US/images/phoneScreenshots/2.png) ![](fastlane/metadata/android/en-US/images/phoneScreenshots/3.png)
 
 ## Install
 
-Android 8.0 (API 26) or newer. Grab the APK from the
-[latest release](../../releases/latest). This is a debug build, so it is signed
-with the Android debug key — build it yourself if you would rather not trust
-that.
+Android 8.0+. APK on the [latest release](../../releases/latest).
 
-## Data sources & credits
+## Data sources
 
 | Source | Used for | Terms |
 |---|---|---|
@@ -49,17 +39,15 @@ that.
 | [TPBI open GTFS](https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip) | lines, geometry, stop sequences, schedules | open feed (© TPBI, STB SA, Metrorex SA) |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (via [osmdroid](https://github.com/osmdroid/osmdroid)) | base map | ODbL — © OpenStreetMap contributors |
 
-**Code licence**: [GPL-2.0](LICENSE). This is original code — it consumes only
-the published open-data endpoints and includes no source code from the mo-bi
-project (whose frontend repository currently ships without a licence file,
-despite the GPLv3 declared on their site).
+**Licence**: [GPL-3.0-or-later](LICENSE).
 
 ## Build
 
-Needs the Android SDK for API 35 and a JDK between 17 and 21 — Android Gradle
-Plugin 8.7 cannot run on newer ones.
+Android SDK 35, JDK 17-21 (AGP 8.7 rejects newer).
 
 ```bash
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`app/src/main/assets/routes.json` is generated: the output of the app's own
+`Gtfs` class, fed the TPBI archive.

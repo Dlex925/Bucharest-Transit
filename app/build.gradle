@@ -14,6 +14,26 @@ android {
         versionName '0.1.0'
     }
 
+    signingConfigs {
+        release {
+            // supplied by CI; without them assembleRelease stays unsigned, which
+            // is what a local build and an F-Droid build both want
+            def store = System.getenv('KEYSTORE_FILE')
+            if (store) {
+                storeFile file(store)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig System.getenv('KEYSTORE_FILE') ? signingConfigs.release : null
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
