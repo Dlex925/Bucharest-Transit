@@ -8,11 +8,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Parses the mo-bi real-time vehicle feed (https://maps.mo-bi.ro/api/busData),
- * a JSON array of GTFS-Realtime-like vehicle positions. Tolerant: malformed
- * input yields an empty list, entries without a position are skipped.
- */
 final class FeedParser {
     private FeedParser() {
     }
@@ -51,7 +46,6 @@ final class FeedParser {
         return o.isNull(key) ? null : o.optDouble(key);
     }
 
-    /** Parses the next-arrivals response of a stop; null for unknown/malformed stations. */
     static Station parseStation(String json) {
         try {
             JSONObject o = new JSONObject(json);
@@ -61,7 +55,8 @@ final class FeedParser {
             if (lines != null)
                 for (int i = 0; i < lines.length(); i++) {
                     JSONObject l = lines.getJSONObject(i);
-                    // arrivingTime is delivered as a numeric string ("720"); 0 = at stop
+
+                    // arrivingTime comes as a string ("720"); 0 = at stop
                     String t = l.optString("arrivingTime", "").trim();
                     int seconds = t.matches("\\d+") ? Integer.parseInt(t) : -1;
                     out.add(new Station.Line(l.optString("name"), l.optString("id", null),

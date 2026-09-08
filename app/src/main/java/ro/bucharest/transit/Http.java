@@ -7,7 +7,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/** Minimal blocking HTTP GET. HttpURLConnection applies transparent gzip. */
 final class Http {
     private Http() {
     }
@@ -23,7 +22,6 @@ final class Http {
         }
     }
 
-    /** Caller must close the returned stream. */
     static InputStream stream(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(10000);

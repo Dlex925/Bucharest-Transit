@@ -67,12 +67,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Client for the Bucharest open-data transit network: live vehicles (number
- * badges) on an osmdroid/OpenStreetMap map, a lines tab backed by a bundled
- * snapshot that self-updates from the official GTFS feed, clickable stops
- * with next arrivals (live feed, timetable fallback), bilingual UI.
- */
 public class MainActivity extends Activity {
     private static final String FEED_URL = "https://maps.mo-bi.ro/api/busData";
     private static final String ARRIVALS_URL = "https://maps.mo-bi.ro/api/nextArrivals/";
@@ -93,8 +87,6 @@ public class MainActivity extends Activity {
     private MyLocationNewOverlay location;
     private SharedPreferences prefs;
 
-    // Draw order is fixed by the order these are added to the map: the route
-    // line sits under every arrow, marker and vehicle instead of over them.
     private final FolderOverlay trafficLayer = new FolderOverlay();
     private final FolderOverlay routeLayer = new FolderOverlay();
     private final FolderOverlay arrowLayer = new FolderOverlay();
@@ -110,7 +102,6 @@ public class MainActivity extends Activity {
     private final Handler timer = new Handler(Looper.getMainLooper());
     private final ExecutorService feedPool = Executors.newSingleThreadExecutor();
     private final ExecutorService ioPool = Executors.newSingleThreadExecutor();
-    // scanning the archive for one stop must not queue behind the archive download
     private final ExecutorService schedulePool = Executors.newSingleThreadExecutor();
     private final java.util.concurrent.atomic.AtomicBoolean refreshing =
             new java.util.concurrent.atomic.AtomicBoolean();
@@ -128,20 +119,19 @@ public class MainActivity extends Activity {
     private String selectedRouteId;
     private Route selectedRoute;
     private int selectedLineColor;
-    private int selectedVariant = -1; // -1: every variant, otherwise one index into Route's arrays
+    private int selectedVariant = -1;
     private String selectedStopId;
-    private Station lastStation;        // last arrivals response, for dialog view switches
-    private boolean timetableView;      // dialog shows the timetable grid instead of arrivals
+    private Station lastStation;
+    private boolean timetableView;
     private String timetableRouteId;
     private volatile Timetable.Index schedule = Timetable.Index.EMPTY;
     private volatile boolean scheduleRead;
-    private volatile boolean scheduleStale; // the published index is an earlier day's
+    private volatile boolean scheduleStale;
     private Runnable pendingViewport;
     private AlertDialog stationDialog;
     private LinearLayout stationBody;
     private Stop shownStop;
 
-    /** One selectable line; the map shows both directions with arrows. */
     private static final class Entry {
         final Route route;
         final String label;
@@ -152,7 +142,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Lines list rows: a colour badge with the line number + the termini text. */
     private final class LinesAdapter extends BaseAdapter {
         @Override
         public int getCount() {
@@ -226,7 +215,7 @@ public class MainActivity extends Activity {
         public void run() {
             if (prefs.getBoolean("show_traffic", false) || prefs.getBoolean("show_alerts", false))
                 loadOverlays();
-            timer.postDelayed(this, 300000); // overlays refresh every 5 minutes
+            timer.postDelayed(this, 300000);
         }
     };
 
@@ -257,7 +246,7 @@ public class MainActivity extends Activity {
         for (FolderOverlay layer : new FolderOverlay[]{
                 trafficLayer, routeLayer, arrowLayer, stopLayer, alertLayer, vehicleLayer})
             map.getOverlays().add(layer);
-        map.getOverlays().add(new CopyrightOverlay(this)); // tile attribution, follows the tile source
+        map.getOverlays().add(new CopyrightOverlay(this));
         map.setMultiTouchControls(true);
         map.getController().setZoom(12.5d);
         map.getController().setCenter(new GeoPoint(44.4268, 26.1025));
@@ -381,8 +370,7 @@ public class MainActivity extends Activity {
         showNearest();
     }
 
-    /** The core goal: the closest stops, newest fix first, one tap away. */
-    @android.annotation.SuppressLint("MissingPermission") // the caller checks ACCESS_FINE_LOCATION first
+    @android.annotation.SuppressLint("MissingPermission")
     private void showNearest() {
         android.location.LocationManager lm = (android.location.LocationManager) getSystemService(LOCATION_SERVICE);
         android.location.Location best = null;
@@ -447,25 +435,19 @@ public class MainActivity extends Activity {
                 } catch (Exception ignored) {
                 }
             }
-            try (InputStream in = getAssets().open("routes.json")) { // bundled snapshot: instant cold start
+            try (InputStream in = getAssets().open("routes.json")) {
                 Network n = RoutesDb.parse(Http.readFully(in));
                 if (!n.routes.isEmpty()) runOnUiThread(() -> applyNetwork(n));
             } catch (Exception ignored) {
             }
-            updateRoutes(); // refresh from the official GTFS feed in the background
+            updateRoutes();
         });
     }
 
-    /**
-     * Downloads the official GTFS archive and rebuilds the database on device.
-     * At most one refresh runs at a time: every caller that finds no archive asks
-     * for one, and the download is tens of megabytes.
-     */
     private void updateRoutes() {
         if (!refreshing.compareAndSet(false, true)) return;
         ioPool.execute(() -> {
             try {
-                // downloaded aside and renamed, so gtfs.zip never exists half-written
                 File partial = new File(getCacheDir(), "gtfs.zip.part");
                 File zip = new File(getCacheDir(), "gtfs.zip");
                 try (InputStream in = Http.stream(Gtfs.GTFS_URL);
@@ -473,7 +455,7 @@ public class MainActivity extends Activity {
                     byte[] buf = new byte[8192];
                     for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
                 }
-                String json = Gtfs.build(partial); // parses before publishing: a broken archive never lands
+                String json = Gtfs.build(partial);
                 if (!zip.delete() && zip.exists()) throw new IOException("stale archive");
                 if (!partial.renameTo(zip)) throw new IOException("rename failed");
                 File tmp = new File(getFilesDir(), "routes.json.tmp");
@@ -485,7 +467,7 @@ public class MainActivity extends Activity {
                 readSchedule();
                 runOnUiThread(() -> {
                     applyNetwork(n);
-                    if (shownStop != null) { // refresh an open stop dialog once fresh data lands
+                    if (shownStop != null) {
                         if (timetableView) showTimetable(timetableRouteId);
                         else loadStation(shownStop);
                     }
@@ -493,7 +475,7 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (timetableView && shownStop != null && stationBody != null)
-                        renderTimetableGrid(shownStop, timetableRouteId, null); // shows "unavailable", never stuck
+                        renderTimetableGrid(shownStop, timetableRouteId, null);
                     Toast.makeText(this, R.string.feed_error, Toast.LENGTH_LONG).show();
                 });
             } finally {
@@ -526,7 +508,6 @@ public class MainActivity extends Activity {
         scheduleViewportStops();
     }
 
-    /** "Tramvai 54 ⇄ capăt0 / capăt1" from the per-direction trip headsigns. */
     private String label(Route r) {
         StringBuilder sb = new StringBuilder(kind(r)).append(' ').append(r.shortName);
         List<String> termini = new ArrayList<>();
@@ -536,7 +517,6 @@ public class MainActivity extends Activity {
         return sb.toString();
     }
 
-    /** Applies the search box query over line numbers and labels. */
     private void applyFilter() {
         String q = searchBox == null || searchBox.getText() == null
                 ? "" : searchBox.getText().toString().trim().toLowerCase(Locale.ROOT);
@@ -560,7 +540,6 @@ public class MainActivity extends Activity {
         refreshNow();
     }
 
-    /** Both directions by default; the chips filter to a single terminus. */
     private void drawRoute(Route r) {
         routeLayer.getItems().clear();
         arrowLayer.getItems().clear();
@@ -604,7 +583,6 @@ public class MainActivity extends Activity {
         map.invalidate();
     }
 
-    /** One chip per variant, so a branch of the same direction gets its own filter. */
     private void updateDirChips(Route r) {
         dirChips.removeAllViews();
         int variants = r == null ? 0 : r.variantCount();
@@ -690,7 +668,7 @@ public class MainActivity extends Activity {
         for (Vehicle v : live) {
             if (v.id.isEmpty()) continue;
             boolean on = onSelection(v);
-            if (!on && !showAll) continue; // with the setting off, only the selected line is drawn
+            if (!on && !showAll) continue;
             visible.put(v.id, v);
         }
         int dim = 0xFF9E9E9E;
@@ -705,7 +683,7 @@ public class MainActivity extends Activity {
             Route r = v.routeId == null ? null : routesById.get(v.routeId);
             boolean on = onSelection(v);
             Bitmap icon;
-            if (r != null) icon = badge(on ? colorOf(r) : dim, r.shortName); // buses carry their number
+            if (r != null) icon = badge(on ? colorOf(r) : dim, r.shortName);
             else icon = dot(dim, Color.WHITE, dp(11));
             m.setIcon(new BitmapDrawable(getResources(), icon));
             m.setTitle(r == null ? getString(R.string.unknown_line) : r.shortName);
@@ -714,7 +692,7 @@ public class MainActivity extends Activity {
             m.setPosition(new GeoPoint(v.lat, v.lon));
         }
         for (String gone : new ArrayList<>(vehicleMarkers.keySet())) {
-            if (!visible.containsKey(gone)) { // remove the marker from the map, not just from the index
+            if (!visible.containsKey(gone)) {
                 vehicleLayer.remove(vehicleMarkers.get(gone));
                 vehicleMarkers.remove(gone);
             }
@@ -727,7 +705,6 @@ public class MainActivity extends Activity {
                 && (selectedVariant < 0 || v.dir < 0 || v.dir == directionOf(selectedRoute, selectedVariant));
     }
 
-    /** Back stack: lines tab -> map, line selection -> clear, otherwise minimise. */
     @Override
     public void onBackPressed() {
         if (flipper.getDisplayedChild() == 1) {
@@ -757,7 +734,6 @@ public class MainActivity extends Activity {
         return m;
     }
 
-    /** Debounced rebuild of the stop markers visible in the current viewport. */
     private void scheduleViewportStops() {
         if (pendingViewport != null) return;
         pendingViewport = () -> {
@@ -785,7 +761,6 @@ public class MainActivity extends Activity {
         map.invalidate();
     }
 
-    /** Keep the chosen stop visually selected until another one is chosen. */
     private void setSelectedStop(Stop s) {
         boolean changed = !s.id.equals(selectedStopId);
         selectedStopId = s.id;
@@ -805,7 +780,7 @@ public class MainActivity extends Activity {
 
     private void showStation(Stop s) {
         setSelectedStop(s);
-        if (stationDialog != null) stationDialog.dismiss(); // replace, never stack
+        if (stationDialog != null) stationDialog.dismiss();
         shownStop = s;
         timetableView = false;
         stationBody = new LinearLayout(this);
@@ -842,11 +817,10 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (stationBody != null && shownStop == s && !timetableView) renderStation(parsed, s);
             });
-            ensureSchedule(); // the schedule lists the lines the live feed left out
+            ensureSchedule();
         });
     }
 
-    /** Arrivals view (live + timetable ETA) and the full-day timetable grid. */
     private void renderStation(Station st, Stop s) {
         if (timetableView) {
             renderTimetableGrid(s, timetableRouteId, dayTimetable(s));
@@ -877,7 +851,6 @@ public class MainActivity extends Activity {
         return now.get(Calendar.HOUR_OF_DAY) * 3600 + now.get(Calendar.MINUTE) * 60;
     }
 
-    /** One timeline entry: "117 → Obor · ≈5 min · live". */
     private LinearLayout arrivalRow(Arrivals.Event ev, int nowSec) {
         Station.Line l = ev.line;
         LinearLayout row = new LinearLayout(this);
@@ -901,7 +874,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams bodyLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         boolean selectable = l.id != null && routesById.containsKey(l.id);
         if (selectable) {
-            body.setOnClickListener(v -> showTimetable(l.id)); // InfoTB-style: tap the line for its timetable
+            body.setOnClickListener(v -> showTimetable(l.id));
             row.addView(body, bodyLp);
             TextView mapChip = new TextView(this);
             mapChip.setText(R.string.chip_map);
@@ -930,22 +903,20 @@ public class MainActivity extends Activity {
         stationBody.addView(text(getString(R.string.station_loading), 15, 0, false));
         stationBody.addView(text(getString(R.string.timetable_loading_hint), 12, 0xFF999999, false));
         if (!scheduleRead) {
-            ensureSchedule(); // the grid re-renders once the archive has been read
+            ensureSchedule();
             return;
         }
         renderTimetableGrid(s, routeId, dayTimetable(s));
     }
 
-    /** Today's departures for one stop, or null while the archive has not been read. */
     private Map<String, List<Integer>> dayTimetable(Stop s) {
         return scheduleRead ? schedule.departures(s.id) : null;
     }
 
-    /** Starts the one background read, or fetches the archive it needs first. */
     private void ensureSchedule() {
         if (scheduleRead) return;
         if (!new File(getCacheDir(), "gtfs.zip").exists()) {
-            updateRoutes(); // reads the schedule itself once the archive lands
+            updateRoutes();
             return;
         }
         if (reading.compareAndSet(false, true))
@@ -958,11 +929,6 @@ public class MainActivity extends Activity {
             });
     }
 
-    /**
-     * Publishes the index of the last read straight away, then reads the whole
-     * archive again unless that index is this archive's, for today. Reading it
-     * takes minutes on a phone, and the stops stay answerable meanwhile.
-     */
     private synchronized void readSchedule() {
         File zip = new File(getCacheDir(), "gtfs.zip");
         File cache = new File(getCacheDir(), "schedule.bin");
@@ -972,26 +938,22 @@ public class MainActivity extends Activity {
         if (cached != null) publishSchedule(cached, !current);
         if (current || !zip.exists()) return;
         Timetable.Index read = Timetable.index(zip, now);
-        // an unreadable archive reads as empty; saying "no departures left today"
-        // for every line would be a claim the app cannot back up
         if (read.isEmpty()) return;
         Timetable.save(cache, read);
         publishSchedule(read, false);
     }
 
-    /** Makes an index the one stops answer from and re-renders whatever is open. */
     private void publishSchedule(Timetable.Index read, boolean stale) {
         schedule = read;
         scheduleStale = stale;
         scheduleRead = true;
-        runOnUiThread(() -> { // a dialog opened while this was running is still showing "checking"
+        runOnUiThread(() -> {
             if (stationBody == null || shownStop == null) return;
             if (timetableView) renderTimetableGrid(shownStop, timetableRouteId, dayTimetable(shownStop));
             else renderStation(lastStation, shownStop);
         });
     }
 
-    /** Full-day departure grid, InfoTB-style: "12│ 00 15 30 45". */
     private void renderTimetableGrid(Stop s, String routeId, Map<String, List<Integer>> day) {
         stationBody.removeAllViews();
         TextView back = text("← " + getString(R.string.tab_back), 14, 0xFF00695C, true);
@@ -1028,7 +990,6 @@ public class MainActivity extends Activity {
         stationBody.addView(text(getString(R.string.from_timetable), 12, 0xFF888888, false));
     }
 
-    /** color 0 keeps the theme's own text colour, which is what dark mode needs. */
     private TextView text(String s, int sp, int color, boolean bold) {
         TextView tv = new TextView(this);
         tv.setText(s);
@@ -1160,7 +1121,6 @@ public class MainActivity extends Activity {
         return Color.GRAY;
     }
 
-    /** Circle icon with a transit line number, InfoTB-style. */
     private Bitmap badge(int fill, String text) {
         String key = "n" + fill + "|" + text;
         Bitmap b = iconCache.get(key);

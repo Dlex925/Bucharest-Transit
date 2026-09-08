@@ -2,7 +2,6 @@ package ro.bucharest.transit;
 
 import java.util.List;
 
-/** The next-arrivals response for one stop (mo-bi /api/nextArrivals/{stopId}). */
 final class Station {
     final String name;
     final String address;
@@ -14,7 +13,6 @@ final class Station {
         this.lines = lines;
     }
 
-    /** One transit line serving the stop; arrivingTime in seconds, -1 if timetable-only. */
     static final class Line {
         final String name;
         final String id;

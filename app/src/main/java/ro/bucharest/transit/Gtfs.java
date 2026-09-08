@@ -20,15 +20,6 @@ import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-/**
- * Builds the on-device network database from the official TPBI GTFS archive:
- * routes joined with their per-direction shapes and ordered stop sequences
- * (one representative trip per direction), plus the stop catalog. Points are
- * decimated below 20 m spacing and coordinates rounded to 5 decimals. Rows are
- * streamed one line at a time (per-line CSV parsing, a pragmatic tradeoff:
- * no GTFS field in this feed contains an embedded newline), so memory stays
- * bounded regardless of feed size.
- */
 final class Gtfs {
     static final String GTFS_URL = "https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip";
     private static final double MIN_SPACING_M = 20;
@@ -45,8 +36,8 @@ final class Gtfs {
                             Double.parseDouble(row.get(2)), Double.parseDouble(row.get(3))}));
             for (List<double[]> pts : shapes.values()) pts.sort(Comparator.comparingDouble(p -> p[2]));
 
-            Map<String, Map<String, String>> variantShape = new HashMap<>(); // route -> variant -> first shapeId
-            Map<String, String[]> tripVariant = new HashMap<>();             // tripId -> {routeId, variant}
+            Map<String, Map<String, String>> variantShape = new HashMap<>();
+            Map<String, String[]> tripVariant = new HashMap<>();
             Set<String> representativeTrips = new HashSet<>();
             eachRow(zip, "trips.txt", row -> {
                 String variant = variantKey(row.get(5), row.size() > 3 ? row.get(3) : "");
@@ -57,7 +48,6 @@ final class Gtfs {
                     representativeTrips.add(row.get(2));
             });
 
-            // route -> variant -> ordered stop ids (from the representative trip of that variant)
             Map<String, Map<String, List<String>>> routeStops = new HashMap<>();
             streamStopSequences(zip, tripVariant, representativeTrips, routeStops);
 
@@ -74,11 +64,6 @@ final class Gtfs {
         }
     }
 
-    /**
-     * A branch shares its direction_id with the trunk but ends elsewhere, so the
-     * terminus is part of the key: keying on direction_id alone kept one branch
-     * of M5 and dropped the other.
-     */
     private static String variantKey(String directionId, String headsign) {
         return directionId + '\u0000' + headsign;
     }
@@ -95,7 +80,6 @@ final class Gtfs {
         return variant.substring(variant.indexOf('\u0000') + 1);
     }
 
-    /** stop_times.txt dominates the archive; consume it strictly row by row. */
     private static void streamStopSequences(ZipFile zip, Map<String, String[]> tripRoute,
                                             Set<String> representativeTrips, Map<String, Map<String, List<String>>> routeStops) throws IOException {
         final String[] curTrip = {null};
@@ -137,7 +121,7 @@ final class Gtfs {
             JSONArray seqs = new JSONArray();
             JSONArray hs = new JSONArray();
             JSONArray dirs = new JSONArray();
-            for (String variant : variants) { // p, q, h and d stay aligned per variant
+            for (String variant : variants) {
                 polys.put(shapeOf == null ? new JSONArray() : polyline(shapes.get(shapeOf.get(variant))));
                 JSONArray ids = new JSONArray();
                 if (stopSeq != null && stopSeq.get(variant) != null)
@@ -172,7 +156,6 @@ final class Gtfs {
         return root.toString();
     }
 
-    /** One decimated polyline from an ordered point list ({lat, lon, seq} rows). */
     private static JSONArray polyline(List<double[]> pts) throws JSONException {
         JSONArray poly = new JSONArray();
         if (pts == null || pts.size() < 2) return poly;

@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class RoutesDbTest {
-
     private static final String SAMPLE =
             "{\"routes\":["
             + "{\"i\":\"882\",\"s\":\"54\",\"t\":0,\"c\":\"#BE1622\",\"l\":\"Sura Mare - Piata Unirii\","

@@ -1,6 +1,5 @@
 package ro.bucharest.transit;
 
-/** One real-time vehicle observation from the mo-bi feed. */
 final class Vehicle {
     final String id;
     final String routeId;

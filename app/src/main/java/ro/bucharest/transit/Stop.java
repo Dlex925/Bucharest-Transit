@@ -1,6 +1,5 @@
 package ro.bucharest.transit;
 
-/** A transit stop from the GTFS feed. */
 final class Stop {
     final String id;
     final String name;

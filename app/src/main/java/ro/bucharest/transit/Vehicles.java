@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Pure query helpers over the vehicle feed. */
 final class Vehicles {
     private Vehicles() {
     }

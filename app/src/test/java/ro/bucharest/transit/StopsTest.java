@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 public class StopsTest {
-
     private static Stop stop(String id, double lat, double lon) {
         return new Stop(id, "Stop " + id, lat, lon);
     }
@@ -21,7 +20,6 @@ public class StopsTest {
         return m;
     }
 
-    /** Meridian ladder north of (44.43, 26.10): 0.0009 deg of latitude ~ 100.1 m. */
     private static Map<String, Stop> ladder() {
         return mapOf(
                 stop("m300", 44.4327, 26.10),
@@ -32,11 +30,10 @@ public class StopsTest {
 
     @Test
     public void resultsAreSortedAscendingByDistance() {
-        // Insertion order scrambled on purpose: far, near, mid.
         Map<String, Stop> stops = mapOf(
-                stop("far", 44.4450, 26.1150),   // ~1.66 km
-                stop("near", 44.4330, 26.1040),  // ~68 m
-                stop("mid", 44.4380, 26.1080));  // ~0.71 km
+                stop("far", 44.4450, 26.1150),
+                stop("near", 44.4330, 26.1040),
+                stop("mid", 44.4380, 26.1080));
         List<Stops.Near> got = Stops.nearest(stops, 44.4325, 26.1035, 10, 2000);
         assertEquals(3, got.size());
         assertEquals("near", got.get(0).stop.id);

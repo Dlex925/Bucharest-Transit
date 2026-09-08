@@ -7,20 +7,12 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Parser for the live alert GeoJSON feed ({@link #URL}): a FeatureCollection
- * of Point features carrying Waze-style user reports. Parsing is pure and
- * total: malformed, empty or null input yields an empty list; features with no
- * usable position (neither properties.lat/lon nor geometry.coordinates) are
- * skipped. Deduplication is deliberately NOT done here.
- */
 final class Alerts {
     static final String URL = "https://maps.mo-bi.ro/api/alertdata";
 
     private Alerts() {
     }
 
-    /** Parses a GeoJSON FeatureCollection; never throws, never returns null. */
     static List<Alert> parse(String json) {
         List<Alert> out = new ArrayList<>();
         JSONObject root = objectOrNull(json);
@@ -37,10 +29,11 @@ final class Alerts {
                 if (props.has("lat")) lat = props.optDouble("lat", Double.NaN);
                 if (props.has("lon")) lon = props.optDouble("lon", Double.NaN);
             }
-            // GeoJSON coordinates are [lon, lat]; used when properties lack usable values.
+
             JSONArray coords = feature.optJSONObject("geometry") == null
                     ? null : feature.optJSONObject("geometry").optJSONArray("coordinates");
             if (Double.isNaN(lat) && coords != null && coords.length() >= 2)
+                // GeoJSON coordinates are [lon, lat]
                 lat = coords.optDouble(1, Double.NaN);
             if (Double.isNaN(lon) && coords != null && coords.length() >= 2)
                 lon = coords.optDouble(0, Double.NaN);
@@ -66,13 +59,11 @@ final class Alerts {
         }
     }
 
-    /** Absent or JSON-null properties become "" (optString can yield "null" on some org.json builds). */
     private static String str(JSONObject props, String key) {
         if (props == null || props.isNull(key)) return "";
         return props.optString(key, "");
     }
 
-    /** One user-reported incident on the map. */
     static final class Alert {
         final String uuid;
         final String type;

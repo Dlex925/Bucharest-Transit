@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 public class ArrivalsTest {
-
     private static final int NOON = 12 * 3600;
 
     private static Station.Line line(String name, String id, int arrivingTime) {
@@ -33,7 +32,6 @@ public class ArrivalsTest {
         return out;
     }
 
-    /** The reported bug: line 3 runs no vehicle, and used to vanish from the stop. */
     @Test
     public void lineWithoutLiveVehicleStillAppearsWithItsSchedule() {
         List<Station.Line> api = Arrays.asList(
@@ -46,16 +44,14 @@ public class ArrivalsTest {
         assertFalse(three.live);
     }
 
-    /** A route the schedule knows but the live feed never listed must be added. */
     @Test
     public void routeMissingFromTheFeedIsTakenFromTheSchedule() {
         List<Arrivals.Event> got = Arrivals.timeline(
                 Collections.singletonList(line("1", "r1", 120)),
                 day("r9", NOON + 900), null, NOON, 12);
-        assertEquals(Arrays.asList("1", "r9"), names(got)); // no Route known: raw id as label
+        assertEquals(Arrays.asList("1", "r9"), names(got));
     }
 
-    /** With the schedule read and nothing left today, the line is still listed. */
     @Test
     public void lineWithNothingLeftTodayIsListedWithAMarker() {
         List<Arrivals.Event> got = Arrivals.timeline(
@@ -65,7 +61,6 @@ public class ArrivalsTest {
         assertEquals(Arrivals.NO_TIME_NONE, got.get(0).sec);
     }
 
-    /** Before the schedule is read, no claim is made about the line. */
     @Test
     public void unreadScheduleIsMarkedPendingNotEmpty() {
         List<Arrivals.Event> got = Arrivals.timeline(
@@ -74,7 +69,6 @@ public class ArrivalsTest {
         assertEquals(Arrivals.NO_TIME_PENDING, got.get(0).sec);
     }
 
-    /** The cap drops later departures, never a line's only row. */
     @Test
     public void everyLineKeepsARowEvenPastTheCap() {
         List<Station.Line> api = new ArrayList<>();
@@ -84,7 +78,7 @@ public class ArrivalsTest {
             schedule.put("r" + i, Arrays.asList(NOON + 60 * (i + 1), NOON + 3600 + i));
         }
         List<Arrivals.Event> got = Arrivals.timeline(api, schedule, null, NOON, 12);
-        assertEquals(20, got.size()); // one row per line, the extras all dropped
+        assertEquals(20, got.size());
         assertEquals(20, new java.util.HashSet<>(names(got)).size());
     }
 
@@ -96,7 +90,6 @@ public class ArrivalsTest {
         assertEquals(Arrays.asList("soon", "late", "none"), names(got));
     }
 
-    /** A scheduled departure within a minute of the live one is the same vehicle. */
     @Test
     public void scheduleDoesNotDuplicateTheLiveArrival() {
         List<Arrivals.Event> got = Arrivals.timeline(
@@ -104,7 +97,7 @@ public class ArrivalsTest {
                 day("r1", NOON + 320, NOON + 1800), null, NOON, 12);
         assertEquals(2, got.size());
         assertTrue(got.get(0).live);
-        assertEquals(NOON + 1800, got.get(1).sec); // the 320 s row was folded into the live one
+        assertEquals(NOON + 1800, got.get(1).sec);
     }
 
     @Test

@@ -16,8 +16,6 @@ android {
 
     signingConfigs {
         release {
-            // supplied by CI; without them assembleRelease stays unsigned, which
-            // is what a local build and an F-Droid build both want
             def store = System.getenv('KEYSTORE_FILE')
             if (store) {
                 storeFile file(store)

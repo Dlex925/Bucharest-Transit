@@ -14,8 +14,6 @@ import java.nio.file.Files;
 import java.util.List;
 
 public class AlertsTest {
-
-    /** Geometry and properties carry different coordinates: properties must win. */
     private static final String ONE_ALERT = "{\"type\":\"FeatureCollection\",\"features\":["
             + "{\"type\":\"Feature\",\"id\":\"uuid_0\",\"geometry\":{\"type\":\"Point\","
             + "\"coordinates\":[26.134644,44.289793]},"
@@ -50,7 +48,7 @@ public class AlertsTest {
                 + "\"properties\":{\"uuid\":\"null-coords\",\"lat\":null,\"lon\":null}}]}";
         List<Alerts.Alert> got = Alerts.parse(json);
         assertEquals(2, got.size());
-        // GeoJSON coordinates are [lon, lat]: lat is the second element.
+
         assertEquals(44.289793, got.get(0).lat, 1e-9);
         assertEquals(26.134644, got.get(0).lon, 1e-9);
         assertEquals(44.29, got.get(1).lat, 1e-9);

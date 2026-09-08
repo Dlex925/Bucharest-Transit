@@ -3,7 +3,6 @@ package ro.bucharest.transit;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Minimal RFC-4180-style CSV parser (quoted fields, escaped quotes, CRLF). */
 final class Csv {
     private Csv() {
     }

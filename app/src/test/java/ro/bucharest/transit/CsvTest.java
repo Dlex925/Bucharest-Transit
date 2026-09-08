@@ -7,7 +7,6 @@ import org.junit.Test;
 import java.util.List;
 
 public class CsvTest {
-
     @Test
     public void parsesPlainRows() {
         List<List<String>> rows = Csv.parse("a,b\nc,d\n");

@@ -7,19 +7,12 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Parser for the live traffic GeoJSON feed ({@link #URL}): a FeatureCollection
- * of LineString features carrying per-street speed and delay. Parsing is pure
- * and total: malformed, empty or null input yields an empty list and any
- * feature that cannot be interpreted is skipped instead of failing the batch.
- */
 final class Traffic {
     static final String URL = "https://maps.mo-bi.ro/api/trafficdata";
 
     private Traffic() {
     }
 
-    /** Parses a GeoJSON FeatureCollection; never throws, never returns null. */
     static List<Segment> parse(String json) {
         List<Segment> out = new ArrayList<>();
         JSONObject root = objectOrNull(json);
@@ -40,7 +33,8 @@ final class Traffic {
                     ok = false;
                     break;
                 }
-                // GeoJSON coordinates are [lon, lat]; points are stored as {lat, lon}.
+
+                // GeoJSON coordinates are [lon, lat]
                 double lon = p.optDouble(0, Double.NaN);
                 double lat = p.optDouble(1, Double.NaN);
                 if (Double.isNaN(lat) || Double.isNaN(lon)) {
@@ -69,13 +63,11 @@ final class Traffic {
         }
     }
 
-    /** Absent or JSON-null properties become "" (optString can yield "null" on some org.json builds). */
     private static String str(JSONObject props, String key) {
         if (props == null || props.isNull(key)) return "";
         return props.optString(key, "");
     }
 
-    /** One street segment: polyline points and live traffic values. */
     static final class Segment {
         final double[][] points;
         final float speedKph;

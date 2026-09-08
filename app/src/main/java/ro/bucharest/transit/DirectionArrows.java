@@ -12,12 +12,6 @@ import org.osmdroid.views.overlay.Overlay;
 
 import java.util.List;
 
-/**
- * Small travel-direction arrows repeated along a projected path. Kept separate
- * from the route polyline so that every line can be drawn before any arrow:
- * when each polyline drew its own arrows, the next direction's line painted
- * over the previous direction's arrows.
- */
 final class DirectionArrows extends Overlay {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint outline = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -30,7 +24,7 @@ final class DirectionArrows extends Overlay {
         this.points = points;
         this.spacingPx = spacingPx;
         this.arrowPx = arrowPx;
-        this.sideOffsetPx = sideOffsetPx; // perpendicular shift so overlapping directions don't collide
+        this.sideOffsetPx = sideOffsetPx;
         fill.setColor(color);
         outline.setColor(Color.WHITE);
     }
@@ -54,7 +48,7 @@ final class DirectionArrows extends Overlay {
             while (segLen > 0 && acc < segLen) {
                 float t = acc / segLen;
                 float ax = xs[i - 1] + dx * t, ay = ys[i - 1] + dy * t;
-                if (sideOffsetPx != 0) { // push the arrow sideways, opposite signs per direction
+                if (sideOffsetPx != 0) {
                     float nx = -dy / segLen, ny = dx / segLen;
                     ax += nx * sideOffsetPx;
                     ay += ny * sideOffsetPx;

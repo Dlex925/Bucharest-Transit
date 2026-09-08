@@ -14,19 +14,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class GtfsTest {
-
     private static final String ROUTES = "route_id,agency_id,route_short_name,route_type,route_color,route_text_color,route_long_name\n"
             + "r1,1,32,3,00AAFF,FFFFFF,\"Coast - Center, Main\"\n";
     private static final String TRIPS = "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id,block_id,shape_id\n"
             + "r1,D,t1,Unirii,,0,b,sh1\n"
             + "r1,D,t2,Victoriei,,1,b,sh2\n"
-            + "r1,D,t3,Unirii,,0,b,sh1\n"; // non-representative: must be ignored
+            + "r1,D,t3,Unirii,,0,b,sh1\n";
     private static final String SHAPES = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n"
             + "sh1,44.00000,26.00000,0\n"
-            + "sh1,44.00100,26.00000,1\n"   // ~111 m: kept
-            + "sh1,44.00100,26.00000,2\n"   // same as last kept: dropped
+            + "sh1,44.00100,26.00000,1\n"
+            + "sh1,44.00100,26.00000,2\n"
             + "sh2,44.50000,26.50000,0\n"
-            + "sh2,44.50000,26.51000,1\n";  // ~795 m: kept
+            + "sh2,44.50000,26.51000,1\n";
     private static final String STOPS = "stop_id,stop_name,stop_desc,stop_lat,stop_lon,location_type,platform_code,parent_station,level_id\n"
             + "s1,Station A,,44.00000,26.00000,,,,\n"
             + "s2,Station B,,44.00100,26.00000,,,,\n"
@@ -47,12 +46,12 @@ public class GtfsTest {
         assertEquals("#00AAFF", r.color);
         assertEquals("Coast - Center, Main", r.name);
         assertEquals(2, r.paths.length);
-        assertEquals(2, r.paths[0].length);          // decimation dropped the duplicate point
+        assertEquals(2, r.paths[0].length);
         assertEquals(2, r.stopIds.length);
-        assertEquals("s1", r.stopIds[0][0]);          // representative trip t1, in sequence order
+        assertEquals("s1", r.stopIds[0][0]);
         assertEquals("s2", r.stopIds[0][1]);
-        assertEquals("s3", r.stopIds[1][0]);          // direction 1 from trip t2
-        assertEquals("Unirii", r.headsigns[0]);       // terminus of direction 0
+        assertEquals("s3", r.stopIds[1][0]);
+        assertEquals("Unirii", r.headsigns[0]);
         assertEquals("Victoriei", r.headsigns[1]);
         assertArrayEquals(new int[]{0, 1}, r.dirIds);
         assertEquals("Station A", n.stops.get("s1").name);
@@ -60,7 +59,6 @@ public class GtfsTest {
         assertEquals(3, n.stops.size());
     }
 
-    /** M5 has two termini on one direction_id; keying variants on direction alone dropped one. */
     @Test
     public void branchesOfOneDirectionBecomeSeparateVariants() throws IOException {
         String trips = "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id,block_id,shape_id\n"
@@ -83,9 +81,9 @@ public class GtfsTest {
         Route r = RoutesDb.parse(Gtfs.build(zip)).routes.get(0);
         assertEquals(3, r.variantCount());
         assertArrayEquals(new String[]{"Raul Doamnei", "Valea Ialomitei", "Eroilor"}, r.headsigns);
-        assertArrayEquals(new int[]{0, 0, 1}, r.dirIds); // both branches keep direction 0
+        assertArrayEquals(new int[]{0, 0, 1}, r.dirIds);
         assertEquals("s1", r.stopIds[0][0]);
-        assertEquals("s2", r.stopIds[1][0]);             // the branch that used to be discarded
+        assertEquals("s2", r.stopIds[1][0]);
         assertEquals("s3", r.stopIds[2][0]);
     }
 

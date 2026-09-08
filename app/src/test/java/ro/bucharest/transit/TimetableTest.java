@@ -19,8 +19,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class TimetableTest {
-
-    /** Monday 2026-09-07, 10:00:00.000. */
     private static Calendar nowAt(int hour, int minute) {
         Calendar c = Calendar.getInstance();
         c.set(2026, Calendar.SEPTEMBER, 7, hour, minute, 0);
@@ -30,10 +28,10 @@ public class TimetableTest {
 
     private static final String CALENDAR = join(
             "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date",
-            "wkd,1,1,1,1,1,0,0,20260901,20261231",     // runs Mon-Fri: valid today (Mon)
-            "wend,0,0,0,0,0,1,1,20260901,20261231",    // runs Sat-Sun: weekday mismatch today
-            "past,1,1,1,1,1,0,0,20260101,20260906",    // weekday matches, but ended yesterday
-            "future,1,1,1,1,1,0,0,20260908,20261231"); // weekday matches, but starts tomorrow
+            "wkd,1,1,1,1,1,0,0,20260901,20261231",
+            "wend,0,0,0,0,0,1,1,20260901,20261231",
+            "past,1,1,1,1,1,0,0,20260101,20260906",
+            "future,1,1,1,1,1,0,0,20260908,20261231");
 
     private static final String TRIPS = join(
             "route_id,service_id,trip_id,trip_headsign",
@@ -53,7 +51,7 @@ public class TimetableTest {
     public void onlyServicesRunningTodayAreConsidered() throws IOException {
         Map<String, List<Integer>> got = departuresOf(zipOf("calendar.txt", CALENDAR, "trips.txt", TRIPS, "stop_times.txt", STOP_TIMES),
                 "s1", nowAt(10, 0));
-        // wkd valid; wend (weekday), past (range) and future (range) must all be excluded
+
         assertEquals(1, got.size());
         assertTrue(got.containsKey("r1"));
         assertEquals(java.util.Collections.singletonList(10 * 3600 + 30 * 60), got.get("r1"));
@@ -64,8 +62,7 @@ public class TimetableTest {
         String calendar = join(
                 "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date",
                 "base,1,1,1,1,1,1,1,20260901,20261231");
-        // "off" is removed today (type 2), "on" is added today (type 1, not in calendar.txt),
-        // and yesterday's removal of "base" must not affect today.
+
         String calendarDates = join(
                 "service_id,date,exception_type",
                 "off,20260907,2",
@@ -94,8 +91,7 @@ public class TimetableTest {
     public void departuresAreSortedAndGroupedByRoute() throws IOException {
         StringBuilder trips = new StringBuilder("route_id,service_id,trip_id,trip_headsign\n");
         StringBuilder stopTimes = new StringBuilder("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
-        // a1/a2 are past / exactly now and must be dropped; the rest are future
-        // but deliberately out of order, more than 5, so sorting and the cap kick in.
+
         String[] r1 = {"a1,09:00:00", "a2,10:00:00", "a5,10:05:00", "a6,10:10:00",
                 "a7,10:15:00", "a4,10:20:00", "a8,10:25:00", "a3,11:30:00", "a9,12:00:00"};
         for (String t : r1) {
@@ -112,8 +108,7 @@ public class TimetableTest {
                         "stop_times.txt", stopTimes.toString()),
                 "s1", nowAt(10, 0));
         assertEquals(2, got.size());
-        // the whole day, ascending and grouped by route; picking what is still
-        // ahead is the timeline's job, not the index's
+
         assertEquals(java.util.Arrays.asList(32400, 36000, 36300, 36600, 36900, 37200, 37500, 41400, 43200),
                 got.get("r1"));
         assertEquals(java.util.Arrays.asList(38400, 40500), got.get("r2"));
@@ -138,7 +133,7 @@ public class TimetableTest {
                 "x2,00:00:00,09:59:00,s1,0");
         Map<String, List<Integer>> got = departuresOf(zipOf("calendar.txt", CALENDAR, "trips.txt", trips, "stop_times.txt", stopTimes),
                 "s1", nowAt(10, 0));
-        // 25:10 stays 90600, past midnight, and still sorts after 09:59
+
         assertEquals(java.util.Arrays.asList(35940, 90600), got.get("r1"));
     }
 
@@ -156,7 +151,7 @@ public class TimetableTest {
                 "n3,00:00:00,23:49:59,s1,0");
         Map<String, List<Integer>> got = departuresOf(zipOf("calendar.txt", CALENDAR, "trips.txt", trips, "stop_times.txt", stopTimes),
                 "s1", nowAt(23, 50));
-        // after-midnight times are never wrapped, so they sort past the late-evening ones
+
         assertEquals(java.util.Arrays.asList(85799, 85800, 88200), got.get("r1"));
     }
 
@@ -170,7 +165,7 @@ public class TimetableTest {
                 "o1,00:00:00,05:00:00,s1,0");
         Map<String, List<Integer>> got = departuresOf(zipOf("calendar.txt", CALENDAR, "trips.txt", trips, "stop_times.txt", stopTimes),
                 "s1", nowAt(23, 0));
-        // the index holds the whole day; the grid needs the morning too
+
         assertEquals(java.util.Collections.singletonList(18000), got.get("r1"));
     }
 
@@ -221,7 +216,7 @@ public class TimetableTest {
         File zip = zipOf("calendar.txt", CALENDAR, "trips.txt", trips.toString(),
                 "stop_times.txt", stopTimes.toString());
         Map<String, List<Integer>> day = departuresOf(zip, "s1", nowAt(10, 0));
-        // past (05:00), future, and beyond-midnight times all included, ascending, uncapped
+
         assertEquals(java.util.Arrays.asList(18000, 43800, 45000, 90600), day.get("r1"));
     }
 
@@ -238,7 +233,7 @@ public class TimetableTest {
         Calendar tomorrow = nowAt(10, 0);
         tomorrow.add(Calendar.DAY_OF_MONTH, 1);
         assertFalse(loaded.covers(zip, tomorrow));
-        // a different archive is a different size, whatever its timestamp says
+
         assertFalse(loaded.covers(zipOf("calendar.txt", CALENDAR), nowAt(10, 0)));
     }
 
@@ -253,7 +248,6 @@ public class TimetableTest {
         assertNull(Timetable.load(new File("/nonexistent/schedule.bin")));
     }
 
-    /** Today's departures of one stop, from the single whole-archive read. */
     private static Map<String, List<Integer>> departuresOf(File zip, String stopId, Calendar now) {
         return Timetable.index(zip, now).departures(stopId);
     }

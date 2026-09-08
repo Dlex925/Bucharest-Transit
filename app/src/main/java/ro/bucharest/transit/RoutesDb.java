@@ -10,11 +10,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Parses the network database built on device by {@link Gtfs} (routes with
- * per-direction geometry and stop sequences, plus the stop catalog). Also
- * tolerant of the legacy schema without stops.
- */
 final class RoutesDb {
     private RoutesDb() {
     }
@@ -49,7 +44,7 @@ final class RoutesDb {
                 for (int j = 0; j < headsigns.length; j++) headsigns[j] = hs.optString(j, "");
                 JSONArray ds = r.optJSONArray("d");
                 int[] dirIds = new int[Math.max(headsigns.length, ds == null ? 0 : ds.length())];
-                // a snapshot without "d" predates branch variants: index doubles as direction
+
                 for (int j = 0; j < dirIds.length; j++) dirIds[j] = ds == null ? j : ds.optInt(j, j);
                 routes.add(new Route(r.getString("i"), r.optString("s"), r.optString("l"),
                         r.isNull("c") ? null : r.optString("c"), r.optInt("t"), paths, stopIds, headsigns, dirIds));

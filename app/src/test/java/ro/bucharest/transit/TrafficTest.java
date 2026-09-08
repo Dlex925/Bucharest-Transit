@@ -14,7 +14,6 @@ import java.nio.file.Files;
 import java.util.List;
 
 public class TrafficTest {
-
     private static final String TWO_FEATURES = "{\"type\":\"FeatureCollection\",\"features\":["
             + "{\"type\":\"Feature\",\"id\":\"639524382\",\"geometry\":{\"type\":\"LineString\","
             + "\"coordinates\":[[26.075537,44.444753],[26.076704,44.443977],[26.078100,44.443000]]},"
@@ -30,7 +29,7 @@ public class TrafficTest {
         assertEquals(2, got.size());
         Traffic.Segment a = got.get(0);
         assertEquals(3, a.points.length);
-        // GeoJSON coordinates are [lon, lat]; segments must store {lat, lon}.
+
         assertEquals(44.444753, a.points[0][0], 1e-9);
         assertEquals(26.075537, a.points[0][1], 1e-9);
         assertEquals(44.443977, a.points[1][0], 1e-9);

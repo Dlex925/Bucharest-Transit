@@ -9,7 +9,6 @@ import org.junit.Test;
 import java.util.List;
 
 public class FeedParserTest {
-
     private static final String SAMPLE =
             "[{\"id\":\"121\",\"vehicle\":{\"trip\":{\"agencyId\":\"1\",\"routeId\":\"882\","
             + "\"directionId\":0,\"startTime\":\"05:00:00\"},"
@@ -57,10 +56,10 @@ public class FeedParserTest {
                 + "{\"name\":\"7\",\"id\":\"740\",\"type\":\"TRAM\",\"color\":\"#BE1622\",\"directionName\":\"Retie\",\"arrivingTime\":30}]}");
         assertEquals("Piata Unirii", s.name);
         assertEquals(3, s.lines.size());
-        assertEquals(30, s.lines.get(0).arrivingTime);   // numeric form
-        assertEquals(240, s.lines.get(1).arrivingTime);  // string form
+        assertEquals(30, s.lines.get(0).arrivingTime);
+        assertEquals(240, s.lines.get(1).arrivingTime);
         assertEquals("740", s.lines.get(0).id);
-        assertEquals(-1, s.lines.get(2).arrivingTime);   // timetable-only lines go last
+        assertEquals(-1, s.lines.get(2).arrivingTime);
     }
 
     @Test
