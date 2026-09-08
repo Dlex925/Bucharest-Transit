@@ -1,0 +1,2 @@
+No longer ships the dependency metadata block that Android Gradle adds to
+the APK for Google's use.

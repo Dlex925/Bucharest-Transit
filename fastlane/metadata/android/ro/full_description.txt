@@ -1,0 +1,21 @@
+Un client Android open-source pentru transportul public bucureștean în timp
+real, construit pe datele deschise de la mo-bi.ro. Este o alternativă fără
+Google la aplicația oficială InfoTB, care depinde de Google Maps și de Play
+Services.
+
+* Vehiculele apar pe hartă cu numărul liniei, actualizate la fiecare 30 de
+  secunde.
+* Liniile se caută după număr sau după capăt de linie; la selectare se
+  desenează toate variantele rutei, cu tot cu ramuri (M5 are două capete în
+  Drumul Taberei).
+* Alegi o stație și vezi, în ordinea sosirii, toate liniile care trec prin ea:
+  ora calculată din poziția GPS a vehiculului acolo unde există una, altfel
+  din orar.
+* Orar pe toată ziua, pentru fiecare linie, calculat pe telefon din arhiva
+  GTFS.
+* Straturi opționale de trafic și incidente. Stații din apropiere, după ultima
+  poziție cunoscută.
+* Română și engleză.
+
+Necesită acces la internet; locația e folosită doar pentru lista de stații din
+apropiere.
