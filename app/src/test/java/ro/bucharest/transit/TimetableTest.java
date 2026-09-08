@@ -2,6 +2,7 @@ package ro.bucharest.transit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -222,6 +223,34 @@ public class TimetableTest {
         Map<String, List<Integer>> day = departuresOf(zip, "s1", nowAt(10, 0));
         // past (05:00), future, and beyond-midnight times all included, ascending, uncapped
         assertEquals(java.util.Arrays.asList(18000, 43800, 45000, 90600), day.get("r1"));
+    }
+
+    @Test
+    public void savedIndexReadsBackIdenticalAndOnlyCoversItsOwnArchiveAndDay() throws IOException {
+        File zip = zipOf("calendar.txt", CALENDAR, "trips.txt", TRIPS, "stop_times.txt", STOP_TIMES);
+        File cache = File.createTempFile("schedule", ".bin");
+        cache.deleteOnExit();
+        Timetable.Index built = Timetable.index(zip, nowAt(10, 0));
+        Timetable.save(cache, built);
+        Timetable.Index loaded = Timetable.load(cache);
+        assertEquals(built.departures("s1"), loaded.departures("s1"));
+        assertTrue(loaded.covers(zip, nowAt(10, 0)));
+        Calendar tomorrow = nowAt(10, 0);
+        tomorrow.add(Calendar.DAY_OF_MONTH, 1);
+        assertFalse(loaded.covers(zip, tomorrow));
+        // a different archive is a different size, whatever its timestamp says
+        assertFalse(loaded.covers(zipOf("calendar.txt", CALENDAR), nowAt(10, 0)));
+    }
+
+    @Test
+    public void corruptedCacheLoadsAsNothingInsteadOfThrowing() throws IOException {
+        File cache = File.createTempFile("schedule", ".bin");
+        cache.deleteOnExit();
+        try (FileOutputStream out = new FileOutputStream(cache)) {
+            out.write("definitely not an index".getBytes(StandardCharsets.UTF_8));
+        }
+        assertNull(Timetable.load(cache));
+        assertNull(Timetable.load(new File("/nonexistent/schedule.bin")));
     }
 
     /** Today's departures of one stop, from the single whole-archive read. */

@@ -10,7 +10,7 @@
     <string name="unknown_line">—</string>
     <string name="exit_line">✕ Închide %1$s</string>
     <string name="station_loading">Se încarcă sosirile…</string>
-    <string name="timetable_loading_hint">Prima încărcare poate dura câteva secunde.</string>
+    <string name="timetable_loading_hint">Prima încărcare poate dura câteva minute.</string>
     <string name="station_unavailable">Sosiri indisponibile</string>
     <string name="no_lines">Fără linii în această stație</string>
     <string name="in_station">în stație</string>
@@ -21,6 +21,7 @@
     <string name="setting_show_all">Afișează toate vehiculele (altfel doar linia selectată)</string>
     <string name="tab_back">Sosiri</string>
     <string name="timetable_unavailable">Orar indisponibil pentru această linie</string>
+    <string name="timetable_stale">Orar dintr-o zi anterioară, se actualizează…</string>
     <string name="chip_map">Hartă</string>
     <string name="search_hint">Caută o linie…</string>
     <string name="setting_show_traffic">Strat de trafic (colorat după întârziere)</string>

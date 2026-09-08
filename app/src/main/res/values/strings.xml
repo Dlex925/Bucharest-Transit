@@ -10,7 +10,7 @@
     <string name="unknown_line">—</string>
     <string name="exit_line">✕ Close %1$s</string>
     <string name="station_loading">Loading arrivals…</string>
-    <string name="timetable_loading_hint">First load can take a few seconds.</string>
+    <string name="timetable_loading_hint">First load can take a few minutes.</string>
     <string name="station_unavailable">Arrivals unavailable</string>
     <string name="no_lines">No lines at this stop</string>
     <string name="in_station">at stop</string>
@@ -21,6 +21,7 @@
     <string name="setting_show_all">Show all vehicles (off: only the selected line)</string>
     <string name="tab_back">Arrivals</string>
     <string name="timetable_unavailable">Timetable unavailable for this line</string>
+    <string name="timetable_stale">Timetable from an earlier day, updating…</string>
     <string name="chip_map">Map</string>
     <string name="search_hint">Search a line…</string>
     <string name="setting_show_traffic">Traffic layer (colored by delay)</string>

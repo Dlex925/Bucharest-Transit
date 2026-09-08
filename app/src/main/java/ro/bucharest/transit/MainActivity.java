@@ -135,6 +135,7 @@ public class MainActivity extends Activity {
     private String timetableRouteId;
     private volatile Timetable.Index schedule = Timetable.Index.EMPTY;
     private volatile boolean scheduleRead;
+    private volatile boolean scheduleStale; // the published index is an earlier day's
     private Runnable pendingViewport;
     private AlertDialog stationDialog;
     private LinearLayout stationBody;
@@ -958,14 +959,30 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Reads the whole archive once, in the background, so that tapping a stop is
-     * instant: the per-stop scan it replaces took minutes on a phone.
+     * Publishes the index of the last read straight away, then reads the whole
+     * archive again unless that index is this archive's, for today. Reading it
+     * takes minutes on a phone, and the stops stay answerable meanwhile.
      */
     private synchronized void readSchedule() {
         File zip = new File(getCacheDir(), "gtfs.zip");
-        if (!zip.exists()) return;
-        Timetable.Index read = Timetable.index(zip, Calendar.getInstance());
+        File cache = new File(getCacheDir(), "schedule.bin");
+        Calendar now = Calendar.getInstance();
+        Timetable.Index cached = Timetable.load(cache);
+        boolean current = cached != null && cached.covers(zip, now);
+        if (cached != null) publishSchedule(cached, !current);
+        if (current || !zip.exists()) return;
+        Timetable.Index read = Timetable.index(zip, now);
+        // an unreadable archive reads as empty; saying "no departures left today"
+        // for every line would be a claim the app cannot back up
+        if (read.isEmpty()) return;
+        Timetable.save(cache, read);
+        publishSchedule(read, false);
+    }
+
+    /** Makes an index the one stops answer from and re-renders whatever is open. */
+    private void publishSchedule(Timetable.Index read, boolean stale) {
         schedule = read;
+        scheduleStale = stale;
         scheduleRead = true;
         runOnUiThread(() -> { // a dialog opened while this was running is still showing "checking"
             if (stationBody == null || shownStop == null) return;
@@ -985,6 +1002,8 @@ public class MainActivity extends Activity {
         stationBody.addView(back);
         Route r = routesById.get(routeId);
         stationBody.addView(text(r == null ? routeId : kind(r) + " " + r.shortName, 16, 0, true));
+        if (scheduleStale)
+            stationBody.addView(text(getString(R.string.timetable_stale), 12, 0xFF999999, false));
         List<Integer> times = day == null ? null : day.get(routeId);
         if (times == null || times.isEmpty()) {
             stationBody.addView(text(getString(R.string.timetable_unavailable), 14, 0, false));

@@ -1,0 +1,2 @@
+Timetables are kept between launches: a stop answers at once while a fresh
+archive is read in the background, instead of after minutes of waiting.

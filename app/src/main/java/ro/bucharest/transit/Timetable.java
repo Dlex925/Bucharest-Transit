@@ -1,7 +1,13 @@
 package ro.bucharest.transit;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +45,7 @@ final class Timetable {
         try (ZipFile zip = new ZipFile(gtfsZip)) {
             Set<String> running = servicesRunningToday(zip, todayNumber(now), dayColumn(now));
             Map<String, String> tripRoute = tripsOfRunningServices(zip, running);
-            return collectDepartures(zip, tripRoute);
+            return collectDepartures(zip, tripRoute, stamp(gtfsZip, now));
         } catch (Exception missingOrCorrupted) {
             return Index.EMPTY;
         }
@@ -104,7 +110,7 @@ final class Timetable {
      * {@code seconds << ROUTE_BITS | routeIndex} so a stop costs one int array
      * instead of boxed lists, and sorting the packed values orders them by time.
      */
-    private static Index collectDepartures(ZipFile zip, Map<String, String> tripRoute) {
+    private static Index collectDepartures(ZipFile zip, Map<String, String> tripRoute, long stamp) {
         Map<String, Integer> routeIndex = new HashMap<>();
         List<String> routeIds = new ArrayList<>();
         Map<String, IntList> byStop = new HashMap<>();
@@ -125,8 +131,72 @@ final class Timetable {
         });
         Map<String, int[]> packed = new HashMap<>(byStop.size() * 2);
         for (Map.Entry<String, IntList> e : byStop.entrySet()) packed.put(e.getKey(), e.getValue().sorted());
-        return new Index(routeIds.toArray(new String[0]), packed);
+        return new Index(routeIds.toArray(new String[0]), packed, stamp);
     }
+
+    /**
+     * Which archive and which day an index belongs to. The size identifies the
+     * archive: the feed is re-downloaded daily and lands on a new file even when
+     * its contents did not change.
+     */
+    private static long stamp(File gtfsZip, Calendar now) {
+        return (long) todayNumber(now) << 32 | (gtfsZip.length() & 0xffffffffL);
+    }
+
+    /**
+     * The index of the last read, kept so that a restart shows timetables at
+     * once instead of re-reading the archive for minutes. Null when there is
+     * none, or when the file cannot be read back.
+     */
+    static Index load(File cache) {
+        if (cache == null) return null;
+        long limit = cache.length();
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(cache)))) {
+            if (in.readInt() != CACHE_VERSION) return null;
+            long stamp = in.readLong();
+            String[] routeIds = new String[count(in, limit)];
+            for (int i = 0; i < routeIds.length; i++) routeIds[i] = in.readUTF();
+            int stops = count(in, limit);
+            Map<String, int[]> byStop = new HashMap<>(stops * 2);
+            for (int i = 0; i < stops; i++) {
+                String stopId = in.readUTF();
+                int[] rows = new int[count(in, limit)];
+                for (int j = 0; j < rows.length; j++) rows[j] = in.readInt();
+                byStop.put(stopId, rows);
+            }
+            return new Index(routeIds, byStop, stamp);
+        } catch (Exception missingOrCorrupted) {
+            return null;
+        }
+    }
+
+    /** Writes the index for the next start; a failed write only costs the next read. */
+    static void save(File cache, Index index) {
+        if (cache == null) return;
+        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(cache)))) {
+            out.writeInt(CACHE_VERSION);
+            out.writeLong(index.stamp);
+            out.writeInt(index.routeIds.length);
+            for (String id : index.routeIds) out.writeUTF(id);
+            out.writeInt(index.byStop.size());
+            for (Map.Entry<String, int[]> e : index.byStop.entrySet()) {
+                out.writeUTF(e.getKey());
+                out.writeInt(e.getValue().length);
+                for (int row : e.getValue()) out.writeInt(row);
+            }
+        } catch (IOException unwritable) {
+            cache.delete();
+        }
+    }
+
+    /** An array length read from the cache: four bytes each, so it cannot exceed the file. */
+    private static int count(DataInputStream in, long fileLength) throws IOException {
+        int n = in.readInt();
+        if (n < 0 || n > fileLength) throw new IOException("corrupt cache");
+        return n;
+    }
+
+    private static final int CACHE_VERSION = 1;
 
     private static final int ROUTE_BITS = 12;
     private static final int MAX_ROUTES = 1 << ROUTE_BITS;
@@ -134,14 +204,21 @@ final class Timetable {
 
     /** Today's departures for every stop, ready to answer one stop instantly. */
     static final class Index {
-        static final Index EMPTY = new Index(new String[0], Collections.emptyMap());
+        static final Index EMPTY = new Index(new String[0], Collections.emptyMap(), 0);
 
         private final String[] routeIds;
         private final Map<String, int[]> byStop;
+        private final long stamp;
 
-        private Index(String[] routeIds, Map<String, int[]> byStop) {
+        private Index(String[] routeIds, Map<String, int[]> byStop, long stamp) {
             this.routeIds = routeIds;
             this.byStop = byStop;
+            this.stamp = stamp;
+        }
+
+        /** True when this index was built from this archive, for this day. */
+        boolean covers(File gtfsZip, Calendar now) {
+            return gtfsZip != null && now != null && stamp != 0 && stamp == Timetable.stamp(gtfsZip, now);
         }
 
         /** Route id -> today's departure seconds, ascending. Unknown stop: empty. */
