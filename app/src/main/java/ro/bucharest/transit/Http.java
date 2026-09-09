@@ -22,10 +22,15 @@ final class Http {
         }
     }
 
-    static InputStream stream(String url) throws IOException {
+    static InputStream stream(String url, long ifModifiedSince) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(10000);
         c.setReadTimeout(30000);
+        c.setIfModifiedSince(ifModifiedSince);
+        if (c.getResponseCode() == HttpURLConnection.HTTP_NOT_MODIFIED) {
+            c.disconnect();
+            return null;
+        }
         return c.getInputStream();
     }
 

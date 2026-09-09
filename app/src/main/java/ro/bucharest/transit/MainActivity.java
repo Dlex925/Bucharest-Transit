@@ -31,6 +31,9 @@ import android.widget.Toast;
 import android.widget.ViewFlipper;
 import android.graphics.drawable.GradientDrawable;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import org.osmdroid.config.IConfigurationProvider;
 import org.osmdroid.events.MapListener;
 import org.osmdroid.events.ScrollEvent;
@@ -58,6 +61,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -72,7 +76,7 @@ public class MainActivity extends Activity {
     private static final String ARRIVALS_URL = "https://maps.mo-bi.ro/api/nextArrivals/";
     private static final long REFRESH_MS = 30000;
     private static final long STALE_SEC = 600;
-    private static final long NETWORK_TTL_MS = 86400000;
+    private static final long NETWORK_TTL_MS = 3600000;
     private static final int NEARBY_STOPS_MIN_ZOOM = 13;
     private static final int NEARBY_STOPS_MAX = 150;
     private static final int ARRIVALS_MAX = 12;
@@ -110,6 +114,7 @@ public class MainActivity extends Activity {
 
     private Network network = new Network(Collections.emptyList(), Collections.emptyMap());
     private final Map<String, Route> routesById = new HashMap<>();
+    private final Map<String, String> liveLineNames = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<Entry> lineEntries = new ArrayList<>();
     private final List<Entry> visibleEntries = new ArrayList<>();
     private LinesAdapter linesAdapter;
@@ -235,6 +240,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        loadLiveLineNames();
         IConfigurationProvider cfg = org.osmdroid.config.Configuration.getInstance();
         cfg.setUserAgentValue(getPackageName());
         cfg.setOsmdroidBasePath(new File(getCacheDir(), "osmdroid"));
@@ -293,7 +299,10 @@ public class MainActivity extends Activity {
         tabMap.setOnClickListener(v -> showTab(0));
         tabLines.setOnClickListener(v -> showTab(1));
         ImageButton refresh = findViewById(R.id.refresh);
-        refresh.setOnClickListener(v -> refreshNow());
+        refresh.setOnClickListener(v -> {
+            refreshNow();
+            updateRoutes();
+        });
         ImageButton settings = findViewById(R.id.settings);
         settings.setOnClickListener(v -> showSettings());
         ImageView locate = findViewById(R.id.locate);
@@ -450,7 +459,14 @@ public class MainActivity extends Activity {
             try {
                 File partial = new File(getCacheDir(), "gtfs.zip.part");
                 File zip = new File(getCacheDir(), "gtfs.zip");
-                try (InputStream in = Http.stream(Gtfs.GTFS_URL);
+                File routes = new File(getFilesDir(), "routes.json");
+                InputStream feed = Http.stream(Gtfs.GTFS_URL,
+                        routes.exists() && zip.exists() ? routes.lastModified() : 0);
+                if (feed == null) {
+                    routes.setLastModified(System.currentTimeMillis());
+                    return;
+                }
+                try (InputStream in = feed;
                      FileOutputStream out = new FileOutputStream(partial)) {
                     byte[] buf = new byte[8192];
                     for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
@@ -462,7 +478,7 @@ public class MainActivity extends Activity {
                 try (Writer w = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
                     w.write(json);
                 }
-                if (!tmp.renameTo(new File(getFilesDir(), "routes.json"))) throw new IOException("rename failed");
+                if (!tmp.renameTo(routes)) throw new IOException("rename failed");
                 final Network n = RoutesDb.parse(json);
                 readSchedule();
                 runOnUiThread(() -> {
@@ -681,12 +697,15 @@ public class MainActivity extends Activity {
                 vehicleMarkers.put(v.id, m);
             }
             Route r = v.routeId == null ? null : routesById.get(v.routeId);
+            String name = r != null ? r.shortName
+                    : v.routeId == null ? null : liveLineNames.get(v.routeId);
             boolean on = onSelection(v);
             Bitmap icon;
             if (r != null) icon = badge(on ? colorOf(r) : dim, r.shortName);
+            else if (name != null) icon = badge(dim, name);
             else icon = dot(dim, Color.WHITE, dp(11));
             m.setIcon(new BitmapDrawable(getResources(), icon));
-            m.setTitle(r == null ? getString(R.string.unknown_line) : r.shortName);
+            m.setTitle(name == null ? getString(R.string.unknown_line) : name);
             long age = v.seenAt > 0 ? Math.max(0, System.currentTimeMillis() / 1000 - v.seenAt) : -1;
             m.setSnippet(v.id + (age >= 0 ? " · " + age + "s" : ""));
             m.setPosition(new GeoPoint(v.lat, v.lon));
@@ -806,6 +825,25 @@ public class MainActivity extends Activity {
         timer.postDelayed(stationTick, REFRESH_MS);
     }
 
+    private void loadLiveLineNames() {
+        try {
+            JSONObject saved = new JSONObject(prefs.getString("live_lines", "{}"));
+            for (Iterator<String> it = saved.keys(); it.hasNext(); ) {
+                String id = it.next();
+                liveLineNames.put(id, saved.getString(id));
+            }
+        } catch (JSONException ignored) {
+        }
+    }
+
+    private void learnLineNames(Station st) {
+        boolean added = false;
+        for (Station.Line l : st.lines)
+            if (l.id != null && !l.id.isEmpty() && l.name != null && !l.name.isEmpty()
+                    && !l.name.equals(liveLineNames.put(l.id, l.name))) added = true;
+        if (added) prefs.edit().putString("live_lines", new JSONObject(liveLineNames).toString()).apply();
+    }
+
     private void loadStation(Stop s) {
         feedPool.execute(() -> {
             Station st = null;
@@ -814,6 +852,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
             final Station parsed = st;
+            if (parsed != null) learnLineNames(parsed);
             runOnUiThread(() -> {
                 if (stationBody != null && shownStop == s && !timetableView) renderStation(parsed, s);
             });
