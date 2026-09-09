@@ -68,5 +68,6 @@ jobs:
           apk="BucharestTransit-$GITHUB_REF_NAME.apk"
           mv app/build/outputs/apk/release/app-release.apk "$apk"
           gh release create "$GITHUB_REF_NAME" "$apk" \
-            --title "$GITHUB_REF_NAME" --generate-notes
+            --title "$GITHUB_REF_NAME" --generate-notes \
+            || gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
           shred -u "$KEYSTORE_FILE"
