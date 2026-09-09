@@ -28,6 +28,12 @@ jobs:
       - name: Lint
         run: ./gradlew --no-daemon :app:lintDebug
 
+      - name: Check tag matches versionName
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          v=$(sed -n "s/.*versionName '\(.*\)'/\1/p" app/build.gradle)
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME does not match versionName $v"; exit 1; }
+
       - name: Decode signing key
         if: startsWith(github.ref, 'refs/tags/')
         env:
