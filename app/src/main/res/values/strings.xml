@@ -37,4 +37,23 @@
     <color name="ic_launcher_bg">#00695C</color>
     <string name="no_departures">no more departures today</string>
     <string name="schedule_loading">checking the schedule…</string>
+    <string name="chip_timetable">Timetable</string>
+    <string name="alert_accident">Accident</string>
+    <string name="alert_jam_heavy">Heavy traffic</string>
+    <string name="alert_jam_standstill">Standstill traffic</string>
+    <string name="alert_jam_moderate">Slow traffic</string>
+    <string name="alert_road_closed">Road closed</string>
+    <string name="alert_road_closed_event">Road closed for an event</string>
+    <string name="alert_construction">Roadworks</string>
+    <string name="alert_hazard">Hazard on the road</string>
+    <string name="alert_pot_hole">Pothole</string>
+    <string name="alert_lane_closed">Lane closed</string>
+    <string name="alert_traffic_light">Traffic light out</string>
+    <string name="alert_object">Object on the road</string>
+    <string name="alert_car_stopped">Car stopped on the road</string>
+    <string name="alert_car_stopped_shoulder">Car stopped on the shoulder</string>
+    <string name="alert_animals">Animals by the road</string>
+    <string name="alert_flood">Flooded street</string>
+    <string name="alert_snow">Heavy snow</string>
+    <string name="alert_weather">Dangerous weather</string>
 </resources>

@@ -36,4 +36,23 @@
     <string name="to_terminus">→ spre %1$s</string>
     <string name="no_departures">nu mai sunt plecări azi</string>
     <string name="schedule_loading">se verifică orarul…</string>
+    <string name="chip_timetable">Orar</string>
+    <string name="alert_accident">Accident</string>
+    <string name="alert_jam_heavy">Trafic intens</string>
+    <string name="alert_jam_standstill">Trafic blocat</string>
+    <string name="alert_jam_moderate">Trafic îngreunat</string>
+    <string name="alert_road_closed">Drum închis</string>
+    <string name="alert_road_closed_event">Drum închis pentru un eveniment</string>
+    <string name="alert_construction">Lucrări pe carosabil</string>
+    <string name="alert_hazard">Pericol pe carosabil</string>
+    <string name="alert_pot_hole">Groapă în asfalt</string>
+    <string name="alert_lane_closed">Bandă închisă</string>
+    <string name="alert_traffic_light">Semafor defect</string>
+    <string name="alert_object">Obiect pe carosabil</string>
+    <string name="alert_car_stopped">Mașină oprită pe carosabil</string>
+    <string name="alert_car_stopped_shoulder">Mașină oprită pe acostament</string>
+    <string name="alert_animals">Animale pe marginea drumului</string>
+    <string name="alert_flood">Stradă inundată</string>
+    <string name="alert_snow">Ninsoare abundentă</string>
+    <string name="alert_weather">Condiții meteo periculoase</string>
 </resources>

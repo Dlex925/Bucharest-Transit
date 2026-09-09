@@ -15,12 +15,17 @@ import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -437,7 +442,7 @@ public class MainActivity extends Activity {
                 try (InputStream in = new FileInputStream(f)) {
                     Network n = RoutesDb.parse(Http.readFully(in));
                     if (!n.routes.isEmpty()) {
-                        runOnUiThread(() -> applyNetwork(n));
+                        onUi(() -> applyNetwork(n));
                         if (System.currentTimeMillis() - f.lastModified() > NETWORK_TTL_MS) updateRoutes();
                         return;
                     }
@@ -446,7 +451,7 @@ public class MainActivity extends Activity {
             }
             try (InputStream in = getAssets().open("routes.json")) {
                 Network n = RoutesDb.parse(Http.readFully(in));
-                if (!n.routes.isEmpty()) runOnUiThread(() -> applyNetwork(n));
+                if (!n.routes.isEmpty()) onUi(() -> applyNetwork(n));
             } catch (Exception ignored) {
             }
             updateRoutes();
@@ -481,7 +486,7 @@ public class MainActivity extends Activity {
                 if (!tmp.renameTo(routes)) throw new IOException("rename failed");
                 final Network n = RoutesDb.parse(json);
                 readSchedule();
-                runOnUiThread(() -> {
+                onUi(() -> {
                     applyNetwork(n);
                     if (shownStop != null) {
                         if (timetableView) showTimetable(timetableRouteId);
@@ -489,7 +494,7 @@ public class MainActivity extends Activity {
                     }
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> {
+                onUi(() -> {
                     if (timetableView && shownStop != null && stationBody != null)
                         renderTimetableGrid(shownStop, timetableRouteId, null);
                     Toast.makeText(this, R.string.feed_error, Toast.LENGTH_LONG).show();
@@ -667,12 +672,12 @@ public class MainActivity extends Activity {
         feedPool.execute(() -> {
             try {
                 List<Vehicle> vehicles = FeedParser.parse(Http.get(FEED_URL));
-                runOnUiThread(() -> {
+                onUi(() -> {
                     lastVehicles = vehicles;
                     renderVehicles(vehicles);
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(this, R.string.feed_error, Toast.LENGTH_SHORT).show());
+                onUi(() -> Toast.makeText(this, R.string.feed_error, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -853,7 +858,7 @@ public class MainActivity extends Activity {
             }
             final Station parsed = st;
             if (parsed != null) learnLineNames(parsed);
-            runOnUiThread(() -> {
+            onUi(() -> {
                 if (stationBody != null && shownStop == s && !timetableView) renderStation(parsed, s);
             });
             ensureSchedule();
@@ -893,45 +898,58 @@ public class MainActivity extends Activity {
     private LinearLayout arrivalRow(Arrivals.Event ev, int nowSec) {
         Station.Line l = ev.line;
         LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        TextView body = new TextView(this);
-        body.setTextSize(15);
-        StringBuilder sb = new StringBuilder(l.name);
-        if (!l.directionName.isEmpty()) sb.append(" → ").append(l.directionName);
-        sb.append("  ·  ");
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+        StringBuilder head = new StringBuilder(l.name);
+        if (!l.directionName.isEmpty()) head.append(" → ").append(l.directionName);
+        TextView title = new TextView(this);
+        title.setTextSize(15);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setText(head.toString());
+        row.addView(title);
+        LinearLayout details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.HORIZONTAL);
+        details.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        details.setPadding(0, dp(4), 0, 0);
+        TextView when = new TextView(this);
+        when.setTextSize(14);
         if (ev.sec < 0)
-            sb.append(getString(ev.sec == Arrivals.NO_TIME_PENDING
+            when.setText(getString(ev.sec == Arrivals.NO_TIME_PENDING
                     ? R.string.schedule_loading : R.string.no_departures));
-        else if (ev.live && ev.sec - nowSec < 60) sb.append(getString(R.string.in_station)).append(" · ").append(getString(R.string.live));
+        else if (ev.live && ev.sec - nowSec < 60)
+            when.setText(getString(R.string.in_station) + " · " + getString(R.string.live));
         else {
             int min = Math.max(1, (ev.sec - nowSec + 59) / 60);
-            sb.append(getString(R.string.eta_min, min)).append(" · ")
-                    .append(getString(ev.live ? R.string.live : R.string.from_timetable));
+            when.setText(getString(R.string.eta_min, min) + " · "
+                    + getString(ev.live ? R.string.live : R.string.from_timetable));
         }
-        body.setText(sb.toString());
-        LinearLayout.LayoutParams bodyLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        boolean selectable = l.id != null && routesById.containsKey(l.id);
-        if (selectable) {
-            body.setOnClickListener(v -> showTimetable(l.id));
-            row.addView(body, bodyLp);
-            TextView mapChip = new TextView(this);
-            mapChip.setText(R.string.chip_map);
-            mapChip.setTextSize(13);
-            mapChip.setTypeface(null, Typeface.BOLD);
-            mapChip.setTextColor(0xFF00695C);
-            mapChip.setBackgroundResource(R.drawable.chip_bg);
-            mapChip.setPadding(dp(10), dp(4), dp(10), dp(4));
-            mapChip.setOnClickListener(v -> {
+        details.addView(when, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (l.id != null && routesById.containsKey(l.id)) {
+            details.addView(chip(R.string.chip_timetable, v -> showTimetable(l.id)));
+            details.addView(chip(R.string.chip_map, v -> {
                 if (stationDialog != null) stationDialog.dismiss();
                 Route r = routesById.get(l.id);
                 selectRoute(new Entry(r, label(r)));
-            });
-            row.addView(mapChip);
-        } else {
-            row.addView(body, bodyLp);
+            }));
         }
+        row.addView(details);
         return row;
+    }
+
+    private TextView chip(int label, View.OnClickListener onClick) {
+        TextView c = new TextView(this);
+        c.setText(label);
+        c.setTextSize(13);
+        c.setTypeface(null, Typeface.BOLD);
+        c.setTextColor(0xFF00695C);
+        c.setBackgroundResource(R.drawable.chip_bg);
+        c.setPadding(dp(10), dp(4), dp(10), dp(4));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = dp(8);
+        c.setLayoutParams(lp);
+        c.setOnClickListener(onClick);
+        return c;
     }
 
     private void showTimetable(String routeId) {
@@ -986,7 +1004,7 @@ public class MainActivity extends Activity {
         schedule = read;
         scheduleStale = stale;
         scheduleRead = true;
-        runOnUiThread(() -> {
+        onUi(() -> {
             if (stationBody == null || shownStop == null) return;
             if (timetableView) renderTimetableGrid(shownStop, timetableRouteId, dayTimetable(shownStop));
             else renderStation(lastStation, shownStop);
@@ -1015,15 +1033,22 @@ public class MainActivity extends Activity {
             StringBuilder row = rows.computeIfAbsent(sec / 3600, k -> new StringBuilder());
             row.append(String.format(Locale.US, " %02d", (sec % 3600) / 60));
         }
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<Integer, StringBuilder> e : rows.entrySet())
-            sb.append(String.format(Locale.US, "%02d│", e.getKey())).append(e.getValue()).append('\n');
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        for (Map.Entry<Integer, StringBuilder> e : rows.entrySet()) {
+            int hourStart = sb.length();
+            sb.append(String.format(Locale.US, "%02d│", e.getKey()));
+            sb.setSpan(new StyleSpan(Typeface.BOLD), hourStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            sb.setSpan(new ForegroundColorSpan(0xFF00695C), hourStart, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            sb.append(e.getValue()).append('\n');
+        }
         TextView grid = new TextView(this);
         grid.setTypeface(Typeface.MONOSPACE);
         grid.setTextSize(15);
-        grid.setText(sb.toString());
+        grid.setText(sb);
+        HorizontalScrollView across = new HorizontalScrollView(this);
+        across.addView(grid);
         ScrollView sc = new ScrollView(this);
-        sc.addView(grid);
+        sc.addView(across);
         stationBody.addView(sc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(320)));
         stationBody.addView(text(getString(R.string.from_timetable), 12, 0xFF888888, false));
@@ -1057,13 +1082,12 @@ public class MainActivity extends Activity {
             }
             final List<Traffic.Segment> t = traffic;
             final List<Alerts.Alert> a = alerts;
-            runOnUiThread(() -> renderOverlays(wantTraffic ? t : null, wantAlerts ? a : null));
+            onUi(() -> renderOverlays(wantTraffic ? t : null, wantAlerts ? a : null));
         });
     }
 
     private void renderOverlays(List<Traffic.Segment> traffic, List<Alerts.Alert> alerts) {
-        trafficLayer.getItems().clear();
-        alertLayer.getItems().clear();
+        clearOverlays();
         if (traffic != null)
             for (Traffic.Segment seg : traffic) {
                 if (seg.points.length < 2) continue;
@@ -1082,7 +1106,7 @@ public class MainActivity extends Activity {
                 m.setPosition(new GeoPoint(a.lat, a.lon));
                 m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
                 m.setIcon(new BitmapDrawable(getResources(), dot(0xFFEF6C00, Color.WHITE, dp(9))));
-                m.setTitle(a.type + (a.subType.isEmpty() ? "" : " · " + a.subType));
+                m.setTitle(alertLabel(a));
                 m.setSnippet(a.street + (a.time.isEmpty() ? "" : " · " + a.time));
                 alertLayer.add(m);
             }
@@ -1090,9 +1114,67 @@ public class MainActivity extends Activity {
     }
 
     private void clearOverlays() {
+        alertLayer.closeAllInfoWindows();
         trafficLayer.getItems().clear();
         alertLayer.getItems().clear();
         map.invalidate();
+    }
+
+    private void onUi(Runnable r) {
+        runOnUiThread(() -> {
+            if (!isDestroyed() && !isFinishing()) r.run();
+        });
+    }
+
+    private String alertLabel(Alerts.Alert a) {
+        String key = a.subType.isEmpty() ? a.type : a.subType;
+        switch (key) {
+            case "ACCIDENT":
+            case "ACCIDENT_MINOR":
+            case "ACCIDENT_MAJOR":
+                return getString(R.string.alert_accident);
+            case "JAM":
+            case "JAM_HEAVY_TRAFFIC":
+                return getString(R.string.alert_jam_heavy);
+            case "JAM_STAND_STILL_TRAFFIC":
+                return getString(R.string.alert_jam_standstill);
+            case "JAM_MODERATE_TRAFFIC":
+            case "JAM_LIGHT_TRAFFIC":
+                return getString(R.string.alert_jam_moderate);
+            case "ROAD_CLOSED":
+                return getString(R.string.alert_road_closed);
+            case "ROAD_CLOSED_EVENT":
+                return getString(R.string.alert_road_closed_event);
+            case "ROAD_CLOSED_CONSTRUCTION":
+            case "HAZARD_ON_ROAD_CONSTRUCTION":
+                return getString(R.string.alert_construction);
+            case "HAZARD":
+            case "HAZARD_ON_ROAD":
+                return getString(R.string.alert_hazard);
+            case "HAZARD_ON_ROAD_POT_HOLE":
+                return getString(R.string.alert_pot_hole);
+            case "HAZARD_ON_ROAD_LANE_CLOSED":
+                return getString(R.string.alert_lane_closed);
+            case "HAZARD_ON_ROAD_TRAFFIC_LIGHT_FAULT":
+                return getString(R.string.alert_traffic_light);
+            case "HAZARD_ON_ROAD_OBJECT":
+                return getString(R.string.alert_object);
+            case "HAZARD_ON_ROAD_CAR_STOPPED":
+                return getString(R.string.alert_car_stopped);
+            case "HAZARD_ON_SHOULDER_CAR_STOPPED":
+                return getString(R.string.alert_car_stopped_shoulder);
+            case "HAZARD_ON_SHOULDER_ANIMALS":
+                return getString(R.string.alert_animals);
+            case "HAZARD_WEATHER_FLOOD":
+                return getString(R.string.alert_flood);
+            case "HAZARD_WEATHER_HEAVY_SNOW":
+                return getString(R.string.alert_snow);
+            case "HAZARD_WEATHER":
+                return getString(R.string.alert_weather);
+            default:
+                return key.isEmpty() ? "" : key.charAt(0)
+                        + key.substring(1).toLowerCase(Locale.US).replace('_', ' ');
+        }
     }
 
     private static int trafficColor(float delayS) {
