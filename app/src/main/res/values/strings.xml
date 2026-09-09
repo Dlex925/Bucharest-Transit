@@ -56,4 +56,11 @@
     <string name="alert_flood">Flooded street</string>
     <string name="alert_snow">Heavy snow</string>
     <string name="alert_weather">Dangerous weather</string>
+    <string name="zoom_in">Zoom in</string>
+    <string name="zoom_out">Zoom out</string>
+    <string name="traffic_stamp">traffic updated %1$s</string>
+    <string name="incidents_shown">Incidents shown</string>
+    <string name="filter_blocking">Blocked roads, closures, accidents</string>
+    <string name="filter_slow">Slow or heavy traffic</string>
+    <string name="filter_minor">Minor hazards (potholes, shoulder)</string>
 </resources>

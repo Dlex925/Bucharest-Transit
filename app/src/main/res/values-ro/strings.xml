@@ -55,4 +55,11 @@
     <string name="alert_flood">Stradă inundată</string>
     <string name="alert_snow">Ninsoare abundentă</string>
     <string name="alert_weather">Condiții meteo periculoase</string>
+    <string name="zoom_in">Mărește harta</string>
+    <string name="zoom_out">Micșorează harta</string>
+    <string name="traffic_stamp">trafic actualizat %1$s</string>
+    <string name="incidents_shown">Incidente afișate</string>
+    <string name="filter_blocking">Drumuri blocate, închise, accidente</string>
+    <string name="filter_slow">Trafic îngreunat</string>
+    <string name="filter_minor">Obstacole minore (gropi, acostament)</string>
 </resources>

@@ -42,6 +42,12 @@ Android 8.0+. APK on the [latest release](../../releases/latest).
 
 **Licence**: [GPL-3.0-or-later](LICENSE).
 
+## Known limitations
+
+TPBI's open GTFS lags behind STB's own database, so the lines list, the drawn
+routes and the timetables will be updated more slowly. Live arrivals are not
+affected — they come from the mo-bi.ro feed.
+
 ## Build
 
 Android SDK 35, JDK 17-21 (AGP 8.7 rejects newer).

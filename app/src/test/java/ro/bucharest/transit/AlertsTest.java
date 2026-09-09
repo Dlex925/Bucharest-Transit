@@ -22,6 +22,26 @@ public class AlertsTest {
             + "\"lat\":44.290000,\"lon\":26.130000,\"type\":\"HAZARD\","
             + "\"sub_type\":\"HAZARD_ON_ROAD_POT_HOLE\",\"time\":\"2026-09-04 15:51:03\"}}]}";
 
+    private static Alerts.Alert alert(String subType) {
+        return Alerts.parse(ONE_ALERT.replace("HAZARD_ON_ROAD_POT_HOLE", subType)).get(0);
+    }
+
+    @Test
+    public void severityGroupsIncidentsByHowMuchTheyBlockTheRoad() {
+        assertEquals(Alerts.SEV_BLOCKING, Alerts.severity(alert("ROAD_CLOSED_EVENT")));
+        assertEquals(Alerts.SEV_BLOCKING, Alerts.severity(alert("HAZARD_ON_ROAD_CONSTRUCTION")));
+        assertEquals(Alerts.SEV_SLOW, Alerts.severity(alert("JAM_HEAVY_TRAFFIC")));
+        assertEquals(Alerts.SEV_MINOR, Alerts.severity(alert("HAZARD_ON_SHOULDER_ANIMALS")));
+        assertEquals(Alerts.SEV_MINOR, Alerts.severity(alert("HAZARD_ON_ROAD_POT_HOLE")));
+    }
+
+    @Test
+    public void severityOfAnAlertWithoutSubTypeComesFromItsType() {
+        String json = ONE_ALERT.replace("\"type\":\"HAZARD\"", "\"type\":\"ROAD_CLOSED\"")
+                .replace("\"sub_type\":\"HAZARD_ON_ROAD_POT_HOLE\"", "\"sub_type\":\"\"");
+        assertEquals(Alerts.SEV_BLOCKING, Alerts.severity(Alerts.parse(json).get(0)));
+    }
+
     @Test
     public void propertiesAreReadAndPropertiesLatLonWinOverGeometry() {
         List<Alerts.Alert> got = Alerts.parse(ONE_ALERT);

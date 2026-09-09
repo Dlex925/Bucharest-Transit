@@ -36,13 +36,13 @@ final class Arrivals {
             first.add(own.get(0));
             later.addAll(own.subList(1, own.size()));
         }
-        later.sort(Arrivals::byTime);
+        later.sort(Arrivals::order);
         List<Event> out = new ArrayList<>(first);
         for (Event e : later) {
             if (out.size() >= Math.max(first.size(), max)) break;
             out.add(e);
         }
-        out.sort(Arrivals::byTime);
+        out.sort(Arrivals::order);
         return out;
     }
 
@@ -64,8 +64,9 @@ final class Arrivals {
         return own;
     }
 
-    private static int byTime(Event a, Event b) {
+    private static int order(Event a, Event b) {
         if ((a.sec < 0) != (b.sec < 0)) return a.sec < 0 ? 1 : -1;
+        if (a.live != b.live) return a.live ? -1 : 1;
         return Integer.compare(a.sec, b.sec);
     }
 

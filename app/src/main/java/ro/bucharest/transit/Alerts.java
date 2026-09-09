@@ -10,7 +10,36 @@ import java.util.List;
 final class Alerts {
     static final String URL = "https://maps.mo-bi.ro/api/alertdata";
 
+    static final int SEV_MINOR = 0;
+    static final int SEV_SLOW = 1;
+    static final int SEV_BLOCKING = 2;
+
     private Alerts() {
+    }
+
+    static int severity(Alert a) {
+        switch (a.subType.isEmpty() ? a.type : a.subType) {
+            case "ROAD_CLOSED":
+            case "ROAD_CLOSED_EVENT":
+            case "ROAD_CLOSED_CONSTRUCTION":
+            case "ACCIDENT":
+            case "ACCIDENT_MINOR":
+            case "ACCIDENT_MAJOR":
+            case "JAM_STAND_STILL_TRAFFIC":
+            case "HAZARD_ON_ROAD_CONSTRUCTION":
+            case "HAZARD_ON_ROAD_LANE_CLOSED":
+            case "HAZARD_ON_ROAD_CAR_STOPPED":
+            case "HAZARD_WEATHER_FLOOD":
+                return SEV_BLOCKING;
+            case "HAZARD_ON_ROAD_POT_HOLE":
+            case "HAZARD_ON_ROAD_ROAD_KILL":
+            case "HAZARD_ON_SHOULDER":
+            case "HAZARD_ON_SHOULDER_CAR_STOPPED":
+            case "HAZARD_ON_SHOULDER_ANIMALS":
+                return SEV_MINOR;
+            default:
+                return SEV_SLOW;
+        }
     }
 
     static List<Alert> parse(String json) {

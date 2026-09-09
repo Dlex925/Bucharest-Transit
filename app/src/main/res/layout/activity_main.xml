@@ -5,40 +5,6 @@
     android:fitsSystemWindows="true"
     android:orientation="vertical">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/lang"
-            style="?android:attr/buttonBarButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <ImageButton
-            android:id="@+id/refresh"
-            style="?android:attr/buttonBarButtonStyle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:contentDescription="@string/refresh"
-            android:src="@android:drawable/ic_popup_sync" />
-
-        <ImageButton
-            android:id="@+id/settings"
-            style="?android:attr/buttonBarButtonStyle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:contentDescription="@string/settings"
-            android:src="@android:drawable/ic_menu_preferences" />
-    </LinearLayout>
-
     <ViewFlipper
         android:id="@+id/flipper"
         android:layout_width="match_parent"
@@ -91,15 +57,37 @@
                 </HorizontalScrollView>
             </LinearLayout>
 
-            <ImageView
-                android:id="@+id/locate"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+            <LinearLayout
+                android:id="@+id/map_tools"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:orientation="vertical" />
+
+            <LinearLayout
+                android:id="@+id/map_zoom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
-                android:layout_margin="16dp"
+                android:layout_margin="8dp"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/traffic_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="26dp"
                 android:background="#B3FFFFFF"
-                android:contentDescription="@string/locate"
-                android:src="@android:drawable/ic_menu_mylocation" />
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:textColor="#FF333333"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </FrameLayout>
 
         <LinearLayout

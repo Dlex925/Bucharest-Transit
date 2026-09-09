@@ -91,6 +91,14 @@ public class ArrivalsTest {
     }
 
     @Test
+    public void liveTimesComeBeforeTimetableOnes() {
+        List<Arrivals.Event> got = Arrivals.timeline(
+                Arrays.asList(line("live", "r1", 600), line("scheduled", "r2", -1)),
+                day("r2", NOON + 60), null, NOON, 12);
+        assertEquals(Arrays.asList("live", "scheduled"), names(got));
+    }
+
+    @Test
     public void scheduleDoesNotDuplicateTheLiveArrival() {
         List<Arrivals.Event> got = Arrivals.timeline(
                 Collections.singletonList(line("1", "r1", 300)),

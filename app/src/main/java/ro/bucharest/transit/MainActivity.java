@@ -6,27 +6,30 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.format.DateFormat;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -35,6 +38,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -46,6 +50,7 @@ import org.osmdroid.events.ZoomEvent;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.CopyrightOverlay;
 import org.osmdroid.views.overlay.FolderOverlay;
@@ -65,6 +70,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -85,12 +91,15 @@ public class MainActivity extends Activity {
     private static final int NEARBY_STOPS_MIN_ZOOM = 13;
     private static final int NEARBY_STOPS_MAX = 150;
     private static final int ARRIVALS_MAX = 12;
+    private static final int ALERTS_MAX = 200;
 
     private MapView map;
     private ViewFlipper flipper;
     private ListView linesList;
     private Button tabMap, tabLines;
     private TextView exitChip;
+    private ImageView vehiclesBtn, trafficBtn, alertsBtn;
+    private TextView trafficStamp;
     private LinearLayout dirChips;
     private View dirChipsBox;
     private MyLocationNewOverlay location;
@@ -126,6 +135,9 @@ public class MainActivity extends Activity {
     private EditText searchBox;
     private List<Route> sortedRoutes = new ArrayList<>();
     private List<Vehicle> lastVehicles = Collections.emptyList();
+    private List<Traffic.Segment> lastTraffic = Collections.emptyList();
+    private List<Alerts.Alert> lastAlerts = Collections.emptyList();
+    private long trafficFetchedAt;
     private String selectedRouteId;
     private Route selectedRoute;
     private int selectedLineColor;
@@ -235,7 +247,7 @@ public class MainActivity extends Activity {
     }
 
     private static Context wrap(Context base) {
-        String lang = base.getSharedPreferences("prefs", MODE_PRIVATE).getString("lang", "ro");
+        String lang = base.getSharedPreferences("prefs", MODE_PRIVATE).getString("lang", defaultLang());
         Configuration cfg = new Configuration(base.getResources().getConfiguration());
         cfg.setLocale(new Locale(lang));
         return base.createConfigurationContext(cfg);
@@ -259,6 +271,7 @@ public class MainActivity extends Activity {
             map.getOverlays().add(layer);
         map.getOverlays().add(new CopyrightOverlay(this));
         map.setMultiTouchControls(true);
+        map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
         map.getController().setZoom(12.5d);
         map.getController().setCenter(new GeoPoint(44.4268, 26.1025));
         map.addMapListener(new MapListener() {
@@ -303,21 +316,8 @@ public class MainActivity extends Activity {
         dirChipsBox = findViewById(R.id.dir_chips_box);
         tabMap.setOnClickListener(v -> showTab(0));
         tabLines.setOnClickListener(v -> showTab(1));
-        ImageButton refresh = findViewById(R.id.refresh);
-        refresh.setOnClickListener(v -> {
-            refreshNow();
-            updateRoutes();
-        });
-        ImageButton settings = findViewById(R.id.settings);
-        settings.setOnClickListener(v -> showSettings());
-        ImageView locate = findViewById(R.id.locate);
-        locate.setOnClickListener(v -> onLocateClicked());
-        Button lang = findViewById(R.id.lang);
-        lang.setText("ro".equals(prefs.getString("lang", "ro")) ? "EN" : "RO");
-        lang.setOnClickListener(v -> {
-            prefs.edit().putString("lang", "ro".equals(prefs.getString("lang", "ro")) ? "en" : "ro").apply();
-            recreate();
-        });
+        trafficStamp = findViewById(R.id.traffic_stamp);
+        buildMapTools();
 
         showTab(0);
         loadRoutes();
@@ -427,6 +427,11 @@ public class MainActivity extends Activity {
     private void showTab(int child) {
         flipper.setDisplayedChild(child);
         boolean mapActive = child == 0;
+        if (mapActive) {
+            InputMethodManager imm = getSystemService(InputMethodManager.class);
+            if (imm != null) imm.hideSoftInputFromWindow(searchBox.getWindowToken(), 0);
+            searchBox.clearFocus();
+        }
         tabMap.setTextColor(mapActive ? 0xFF00695C : 0xFF888888);
         tabMap.setTypeface(null, mapActive ? Typeface.BOLD : Typeface.NORMAL);
         tabLines.setTextColor(mapActive ? 0xFF888888 : 0xFF00695C);
@@ -1082,14 +1087,22 @@ public class MainActivity extends Activity {
             }
             final List<Traffic.Segment> t = traffic;
             final List<Alerts.Alert> a = alerts;
-            onUi(() -> renderOverlays(wantTraffic ? t : null, wantAlerts ? a : null));
+            onUi(() -> {
+                if (wantTraffic && !t.isEmpty()) {
+                    lastTraffic = t;
+                    trafficFetchedAt = System.currentTimeMillis();
+                }
+                if (wantAlerts && !a.isEmpty()) lastAlerts = a;
+                renderOverlays();
+            });
         });
     }
 
-    private void renderOverlays(List<Traffic.Segment> traffic, List<Alerts.Alert> alerts) {
+    private void renderOverlays() {
         clearOverlays();
-        if (traffic != null)
-            for (Traffic.Segment seg : traffic) {
+        boolean traffic = prefs.getBoolean("show_traffic", false);
+        if (traffic)
+            for (Traffic.Segment seg : lastTraffic) {
                 if (seg.points.length < 2) continue;
                 List<GeoPoint> pts = new ArrayList<>(seg.points.length);
                 for (double[] pt : seg.points) pts.add(new GeoPoint(pt[0], pt[1]));
@@ -1099,18 +1112,36 @@ public class MainActivity extends Activity {
                 line.getOutlinePaint().setColor(trafficColor(seg.delayS));
                 trafficLayer.add(line);
             }
-        if (alerts != null)
-            for (int i = 0; i < alerts.size() && i < 200; i++) {
-                Alerts.Alert a = alerts.get(i);
+        if (traffic && trafficFetchedAt > 0) {
+            trafficStamp.setText(getString(R.string.traffic_stamp,
+                    DateFormat.getTimeFormat(this).format(new Date(trafficFetchedAt))));
+            trafficStamp.setVisibility(View.VISIBLE);
+        } else {
+            trafficStamp.setVisibility(View.GONE);
+        }
+        if (prefs.getBoolean("show_alerts", false)) {
+            int shown = 0;
+            for (Alerts.Alert a : lastAlerts) {
+                if (shown >= ALERTS_MAX) break;
+                int severity = Alerts.severity(a);
+                if (!prefs.getBoolean("alerts_sev" + severity, true)) continue;
                 Marker m = new Marker(map);
                 m.setPosition(new GeoPoint(a.lat, a.lon));
                 m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
-                m.setIcon(new BitmapDrawable(getResources(), dot(0xFFEF6C00, Color.WHITE, dp(9))));
+                m.setIcon(new BitmapDrawable(getResources(),
+                        dot(alertColor(severity), Color.WHITE, dp(9))));
                 m.setTitle(alertLabel(a));
                 m.setSnippet(a.street + (a.time.isEmpty() ? "" : " · " + a.time));
                 alertLayer.add(m);
+                shown++;
             }
+        }
         map.invalidate();
+    }
+
+    private static int alertColor(int severity) {
+        return severity == Alerts.SEV_BLOCKING ? 0xFFC62828
+                : severity == Alerts.SEV_SLOW ? 0xFFEF6C00 : 0xFFFBC02D;
     }
 
     private void clearOverlays() {
@@ -1184,6 +1215,78 @@ public class MainActivity extends Activity {
         return 0xFFC62828;
     }
 
+    // ---------- map tools ----------
+
+    private static final int TOOL_IDLE = 0xFF424242;
+    private static final int TOOL_ON = 0xFF00695C;
+    private static final int TOOL_OFF = 0xFF9E9E9E;
+
+    private void buildMapTools() {
+        LinearLayout tools = findViewById(R.id.map_tools);
+        tool(tools, R.drawable.ic_refresh, R.string.refresh, v -> {
+            refreshNow();
+            updateRoutes();
+        });
+        vehiclesBtn = tool(tools, R.drawable.ic_bus, R.string.setting_show_all, v -> {
+            boolean on = !prefs.getBoolean("show_all_vehicles", true);
+            prefs.edit().putBoolean("show_all_vehicles", on).apply();
+            toolState(vehiclesBtn, R.drawable.ic_bus, on);
+            renderVehicles(lastVehicles);
+        });
+        trafficBtn = tool(tools, R.drawable.ic_traffic, R.string.setting_show_traffic,
+                v -> toggleLayer("show_traffic", trafficBtn, R.drawable.ic_traffic));
+        alertsBtn = tool(tools, R.drawable.ic_warning, R.string.setting_show_alerts,
+                v -> toggleLayer("show_alerts", alertsBtn, R.drawable.ic_warning));
+        toolState(vehiclesBtn, R.drawable.ic_bus, prefs.getBoolean("show_all_vehicles", true));
+        toolState(trafficBtn, R.drawable.ic_traffic, prefs.getBoolean("show_traffic", false));
+        toolState(alertsBtn, R.drawable.ic_warning, prefs.getBoolean("show_alerts", false));
+        tool(tools, R.drawable.ic_settings, R.string.settings, v -> showSettings());
+
+        LinearLayout zoom = findViewById(R.id.map_zoom);
+        tool(zoom, R.drawable.ic_zoom_in, R.string.zoom_in, v -> map.getController().zoomIn());
+        tool(zoom, R.drawable.ic_zoom_out, R.string.zoom_out, v -> map.getController().zoomOut());
+        tool(zoom, R.drawable.ic_my_location, R.string.locate, v -> onLocateClicked());
+    }
+
+    private ImageView tool(LinearLayout column, int icon, int description, View.OnClickListener click) {
+        ImageView button = new ImageView(this);
+        int pad = dp(10);
+        button.setPadding(pad, pad, pad, pad);
+        button.setContentDescription(getString(description));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(dp(10));
+        bg.setColor(0xF2FFFFFF);
+        bg.setStroke(dp(1), 0x22000000);
+        button.setBackground(bg);
+        button.setElevation(dp(2));
+        button.setOnClickListener(click);
+        setToolIcon(button, icon, TOOL_IDLE, false);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        if (column.getChildCount() > 0) lp.topMargin = dp(6);
+        column.addView(button, lp);
+        return button;
+    }
+
+    private void toolState(ImageView button, int icon, boolean on) {
+        setToolIcon(button, icon, on ? TOOL_ON : TOOL_OFF, !on);
+    }
+
+    private void setToolIcon(ImageView button, int icon, int color, boolean slashed) {
+        Drawable d = getDrawable(icon).mutate();
+        d.setTint(color);
+        button.setImageDrawable(slashed
+                ? new LayerDrawable(new Drawable[]{d, getDrawable(R.drawable.ic_slash)}) : d);
+    }
+
+    private void toggleLayer(String key, ImageView button, int icon) {
+        boolean on = !prefs.getBoolean(key, false);
+        prefs.edit().putBoolean(key, on).apply();
+        toolState(button, icon, on);
+        if (on) loadOverlays();
+        else renderOverlays();
+    }
+
     // ---------- settings ----------
 
     private void showSettings() {
@@ -1191,45 +1294,46 @@ public class MainActivity extends Activity {
         box.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(20);
         box.setPadding(pad, pad, pad, pad);
-        CheckBox showAll = new CheckBox(this);
-        showAll.setText(getString(R.string.setting_show_all));
-        showAll.setChecked(prefs.getBoolean("show_all_vehicles", true));
-        showAll.setOnCheckedChangeListener((b, checked) -> {
-            prefs.edit().putBoolean("show_all_vehicles", checked).apply();
-            renderVehicles(lastVehicles);
-        });
-        CheckBox traffic = new CheckBox(this);
-        traffic.setText(getString(R.string.setting_show_traffic));
-        traffic.setChecked(prefs.getBoolean("show_traffic", false));
-        traffic.setOnCheckedChangeListener((b, checked) -> {
-            prefs.edit().putBoolean("show_traffic", checked).apply();
-            if (checked) loadOverlays();
-            else if (!prefs.getBoolean("show_alerts", false)) clearOverlays();
-            else renderOverlays(null, null);
-        });
-        CheckBox alerts = new CheckBox(this);
-        alerts.setText(getString(R.string.setting_show_alerts));
-        alerts.setChecked(prefs.getBoolean("show_alerts", false));
-        alerts.setOnCheckedChangeListener((b, checked) -> {
-            prefs.edit().putBoolean("show_alerts", checked).apply();
-            if (checked) loadOverlays();
-            else if (!prefs.getBoolean("show_traffic", false)) clearOverlays();
-            else renderOverlays(null, null);
-        });
-        box.addView(showAll);
-        box.addView(traffic);
-        box.addView(alerts);
-        new AlertDialog.Builder(this)
+        box.addView(text(getString(R.string.incidents_shown), 14, 0xFF888888, true));
+        int[] labels = {R.string.filter_blocking, R.string.filter_slow, R.string.filter_minor};
+        int[] severities = {Alerts.SEV_BLOCKING, Alerts.SEV_SLOW, Alerts.SEV_MINOR};
+        for (int i = 0; i < labels.length; i++) {
+            final String key = "alerts_sev" + severities[i];
+            CheckBox filter = new CheckBox(this);
+            filter.setText(labels[i]);
+            filter.setChecked(prefs.getBoolean(key, true));
+            filter.setOnCheckedChangeListener((b, checked) -> {
+                prefs.edit().putBoolean(key, checked).apply();
+                renderOverlays();
+            });
+            box.addView(filter);
+        }
+        boolean romanian = "ro".equals(prefs.getString("lang", defaultLang()));
+        Button lang = new Button(this);
+        lang.setText(romanian ? "English" : "Rom\u00e2n\u0103");
+        box.addView(lang);
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.settings)
                 .setView(box)
                 .setPositiveButton(R.string.close, null)
-                .show();
+                .create();
+        lang.setOnClickListener(v -> {
+            prefs.edit().putString("lang", romanian ? "en" : "ro").apply();
+            dialog.dismiss();
+            recreate();
+        });
+        dialog.show();
     }
 
     // ---------- helpers ----------
 
     private int dp(int v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private static String defaultLang() {
+        return "ro".equals(Resources.getSystem().getConfiguration().getLocales().get(0).getLanguage())
+                ? "ro" : "en";
     }
 
     private int colorOf(Route r) {
