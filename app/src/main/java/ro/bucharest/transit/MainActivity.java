@@ -1224,6 +1224,7 @@ public class MainActivity extends Activity {
     private void buildMapTools() {
         LinearLayout tools = findViewById(R.id.map_tools);
         tool(tools, R.drawable.ic_refresh, R.string.refresh, v -> {
+            v.animate().rotationBy(3600f).setDuration(1200).start();
             refreshNow();
             updateRoutes();
         });
