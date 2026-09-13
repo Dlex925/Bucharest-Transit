@@ -272,8 +272,17 @@ public class MainActivity extends Activity {
         map.getOverlays().add(new CopyrightOverlay(this));
         map.setMultiTouchControls(true);
         map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
-        map.getController().setZoom(12.5d);
-        map.getController().setCenter(new GeoPoint(44.4268, 26.1025));
+        if (savedInstanceState != null) {
+            map.getController().setZoom(savedInstanceState.getDouble("map.zoom"));
+            map.getController().setCenter(new GeoPoint(
+                    savedInstanceState.getDouble("map.lat"), savedInstanceState.getDouble("map.lon")));
+            selectedRouteId = savedInstanceState.getString("sel.route");
+            selectedVariant = savedInstanceState.getInt("sel.variant", -1);
+            selectedStopId = savedInstanceState.getString("sel.stop");
+        } else {
+            map.getController().setZoom(12.5d);
+            map.getController().setCenter(new GeoPoint(44.4268, 26.1025));
+        }
         map.addMapListener(new MapListener() {
             @Override
             public boolean onScroll(ScrollEvent event) {
@@ -334,6 +343,18 @@ public class MainActivity extends Activity {
         timer.removeCallbacks(overlayTick);
         overlayTick.run();
         if (location != null) location.enableMyLocation();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        org.osmdroid.api.IGeoPoint c = map.getMapCenter();
+        outState.putDouble("map.zoom", map.getZoomLevelDouble());
+        outState.putDouble("map.lat", c.getLatitude());
+        outState.putDouble("map.lon", c.getLongitude());
+        outState.putString("sel.route", selectedRouteId);
+        outState.putInt("sel.variant", selectedVariant);
+        outState.putString("sel.stop", selectedStopId);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -406,9 +427,11 @@ public class MainActivity extends Activity {
         box.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(8);
         box.setPadding(pad, pad, pad, pad);
+        ScrollView nearScroll = new ScrollView(this);
+        nearScroll.addView(box);
         final AlertDialog dlg = new AlertDialog.Builder(this)
                 .setTitle(R.string.nearest_title)
-                .setView(box)
+                .setView(nearScroll)
                 .setPositiveButton(R.string.close, null)
                 .create();
         for (Stops.Near n : near) {
@@ -567,6 +590,7 @@ public class MainActivity extends Activity {
     }
 
     private void drawRoute(Route r) {
+        selectedRoute = r; // also valid on restore-from-rotation, where selectRoute() never ran
         routeLayer.getItems().clear();
         arrowLayer.getItems().clear();
         for (Marker m : lineStopMarkers) stopLayer.remove(m);
@@ -632,7 +656,12 @@ public class MainActivity extends Activity {
             chip.setOnClickListener(v -> toggleVariant(variant));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            if (i > 0) lp.leftMargin = dp(6);
+            boolean land = getResources().getConfiguration().orientation
+                    == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+            if (i > 0) {
+                if (land) lp.leftMargin = dp(6);
+                else lp.topMargin = dp(6);
+            }
             dirChips.addView(chip, lp);
         }
     }
@@ -819,9 +848,11 @@ public class MainActivity extends Activity {
         TextView loading = new TextView(this);
         loading.setText(getString(R.string.station_loading));
         stationBody.addView(loading);
+        ScrollView dialogScroll = new ScrollView(this);
+        dialogScroll.addView(stationBody);
         stationDialog = new AlertDialog.Builder(this)
                 .setTitle(s.name)
-                .setView(stationBody)
+                .setView(dialogScroll)
                 .setPositiveButton(R.string.close, null)
                 .create();
         stationDialog.setOnDismissListener(d -> {
