@@ -21,16 +21,17 @@
                 android:layout_height="match_parent" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="top|center_horizontal"
+                android:layout_gravity="top"
                 android:layout_marginTop="8dp"
                 android:gravity="center_horizontal"
                 android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/exit_chip"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
+                    android:gravity="center"
                     android:layout_height="wrap_content"
                     android:background="@drawable/chip_bg"
                     android:paddingStart="14dp"
@@ -43,7 +44,7 @@
 
                 <HorizontalScrollView
                     android:id="@+id/dir_chips_box"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:scrollbars="none"

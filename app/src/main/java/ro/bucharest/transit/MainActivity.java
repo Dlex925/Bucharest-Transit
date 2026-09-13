@@ -589,7 +589,7 @@ public class MainActivity extends Activity {
             line.getOutlinePaint().setStrokeWidth(7 * getResources().getDisplayMetrics().density);
             line.getOutlinePaint().setColor(selectedLineColor);
             routeLayer.add(line);
-            arrowLayer.add(new DirectionArrows(pts, selectedLineColor, dp(70), dp(9),
+            arrowLayer.add(new DirectionArrows(pts, selectedLineColor, dp(70), dp(14),
                     drawn.size() > 1 ? (directionOf(r, d) == 0 ? dp(3) : -dp(3)) : 0));
         }
         LinkedHashSet<String> ids = new LinkedHashSet<>();
