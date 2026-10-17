@@ -3,9 +3,9 @@
 [![build](https://github.com/Dlex925/Bucharest-Transit/actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
 
 [<img src=".github/badge_obtainium.png" alt="Get it on Obtainium" height="70">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22ro.bucharest.transit%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FDlex925%2FBucharest-Transit%22%2C%22author%22%3A%22Dlex925%22%2C%22name%22%3A%22Bucharest%20Transit%22%7D)
-<!-- uncomment once the app is accepted into F-Droid:
+
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="70">](https://f-droid.org/packages/ro.bucharest.transit/)
--->
+
 
 An open-source Android client for real-time Bucharest public transport, built
 on the open data from mo-bi.ro. It is a de-Googled alternative to the official
